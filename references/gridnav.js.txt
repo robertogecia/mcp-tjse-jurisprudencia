@@ -1,0 +1,88 @@
+/*
+ * WEBINSIDE - Ferramenta de produtividade Java
+ * Copyright (c) 2011-2012 LINEWEB SoluÃ§Ãµes TecnolÃ³gicas Ltda.
+ * Copyright (c) 2009-2010 IncÃ³gnita InteligÃªncia Digital Ltda.
+ *
+ * Este programa Ã© software livre; vocÃª pode redistribuÃ­-lo e/ou modificÃ¡-lo 
+ * sob os termos da GNU LESSER GENERAL PUBLIC LICENSE (LGPL) conforme publicada 
+ * pela Free Software Foundation; versÃ£o 2.1 da LicenÃ§a.
+ * Este programa Ã© distribuÃ­do na expectativa de que seja Ãºtil, porÃ©m, SEM 
+ * NENHUMA GARANTIA; nem mesmo a garantia implÃ­cita de COMERCIABILIDADE OU 
+ * ADEQUAÃÃO A UMA FINALIDADE ESPECÃFICA.
+ * 
+ * Consulte a GNU LGPL para mais detalhes.
+ * VocÃª deve ter recebido uma cÃ³pia da GNU LGPL junto com este programa; se nÃ£o, 
+ * veja em http://www.gnu.org/licenses/ 
+ */
+
+function rerenderWIGrid(grid, pos) {
+  submitWIGrid(grid, pos, true);
+}
+
+function submitWIGrid(grid, pos, rerender) {
+  var form = document.forms['wiFormGridNav'];
+  if (!form) return;
+  if ((typeof userWIGrid) == 'function') {
+    userWIGrid(grid, form);
+  }
+  var userWIGridName = grid.replace("grid.","");
+  userWIGridName = userWIGridName.substring(0,1).toUpperCase() +
+                   userWIGridName.substring(1, userWIGridName.length);
+  userWIGridName = "userWIGrid" + userWIGridName;
+  if (document.getElementById(userWIGridName)) {
+    var userWIGridFunc = eval(userWIGridName);
+    if ((typeof userWIGridFunc) == 'function') {
+      userWIGridFunc(grid, form);
+    }
+  }	
+  getFormHidden(form,grid.toLowerCase()+'.next').value = pos;
+  if (rerender) {
+    var rerenderDiv = "";
+    var grid2 = grid.replace(".","_");
+	// grid.rerender ou grid_rerender
+    if (form["grid.rerender"]) {
+      rerenderDiv += "," + form["grid.rerender"].value;
+    }
+    if (form["grid_rerender"]) {
+      rerenderDiv += "," + form["grid_rerender"].value;
+    }
+	// grid.xxx.rerender ou grid_xxx_rerender
+    if (form[grid + ".rerender"]) {
+      rerenderDiv += "," + form[grid + ".rerender"].value;
+    }
+    if (form[grid2 + "_rerender"]) {
+      rerenderDiv += "," + form[grid2 + "_rerender"].value;
+    }
+	// form.xxx ou form_xxx
+    var fgrid = grid.replace("grid.","form.");
+	if (document.getElementById(fgrid)) {
+	  grid = fgrid;
+	}
+    var fgrid2 = grid2.replace("grid_","form_");
+	if (document.getElementById(fgrid2)) {
+	  grid2 = fgrid2;
+	}
+	// executa o rerender
+	if (document.getElementById(grid2)) grid = grid2;
+    rerenderSubmit(form, grid + rerenderDiv);
+  } else {
+    form.submit();
+  }
+}
+
+function getFormHidden(form, name) {
+	var input = form[name];
+	if (!input) {
+		var ie = navigator.userAgent.indexOf('MSIE') > -1;
+		if (navigator.userAgent.indexOf('MSIE 9') > -1) ie = false;
+		if (ie) {
+			input = document.createElement("<INPUT name='" + name + "'>");
+		} else {
+			input = document.createElement("INPUT");
+			input.name = name;
+		}
+		input.type = 'hidden';
+		form.appendChild(input);
+	}
+	return input;
+}

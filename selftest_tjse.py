@@ -1,0 +1,238 @@
+"""Selftest do tjse_jurisprudencia. Offline sobre fixtures reais (21/09/2026), estado em pasta temporária.
+`--online`: UMA requisição real (inteiro teor do fixture) pelo disjuntor real."""
+import asyncio, os, sys, tempfile
+
+def main(online: bool = False) -> int:
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    if not online:
+        os.environ["TJSE_DIR_DADOS"] = tempfile.mkdtemp(prefix="tjse-selftest-")
+    sys.modules.pop("servidor_tjse", None)
+    import servidor_tjse as s
+    fx = lambda n: open(os.path.join(raiz, "fixtures", n), encoding="iso-8859-1").read()
+    ok = falhas = 0
+    def t(nome, cond):
+        nonlocal ok, falhas
+        if cond: ok += 1
+        else: falhas += 1; print("  FALHOU:", nome)
+
+    # edições
+    eds = s.parse_edicoes(fx("02-pesquisa-1ano.html"))
+    t("12 edições", len(eds) == 12)
+    t("edição 168 = 31/08/2026", any(e["edicao"] == 168 and e["data"] == "2026-08-31" for e in eds))
+    t("edição 157 = 30/09/2025", any(e["edicao"] == 157 and e["data"] == "2025-09-30" for e in eds))
+    # menu
+    menu = s.parse_menu(fx("05-menu-168.html"))
+    t("menu: 5 seções com acórdão", [m["codigo"] for m in menu] == [10, 5, 6, 7, 8])
+    t("menu: 1ª CC = 6", any(m["codigo"] == 6 and m["nome"] == "1ª Câmara Cível" for m in menu))
+    t("menu: sem abreviaturas", all("brevi" not in m["nome"] for m in menu))
+    # seção
+    itens = s.parse_secao(fx("07-principal-168-sec5.html"))
+    t("seção 5: 2 acórdãos (dedup do comentário HTML)", [i["acordao"] for i in itens] == ["202639853", "202639857"])
+    a = itens[0]
+    t("processo", a["processo"] == "202600632112")
+    t("classe", a["classe"] == "Conflito de Competência")
+    t("recurso", a["recurso"] == "CC Nº 00143/2026")
+    t("relator limpo", a["relator"] == "DES. CEZÁRIO SIQUEIRA NETO" and a["relator_rotulo"] == "RELATOR ORIGINÁRIO")
+    t("ementa começa/termina certo", a["ementa"].startswith("CONFLITO NEGATIVO DE COMPETÊNCIA") and a["ementa"].endswith("UNÂNIME."))
+    t("cp1252 baixo vira travessão", "–" in itens[1]["ementa"] and "\x13" not in itens[1]["ementa"])
+    t("ementa sem PROCESSO:", "PROCESSO" not in a["ementa"])
+    # teor
+    d = s.parse_teor(fx("03-relatorio-202638463.html"))
+    t("teor: acórdão", d["acordao"] == "202638463")
+    t("teor: processo", d["processo"] == "202600737656")
+    t("teor: recurso", d["recurso"] == "Agravo de Instrumento")
+    t("teor: órgão do fecho", d["orgao_fecho"] == "1ª Câmara Cível" and not d["fecho_ambiguo"])
+    t("teor: data do fecho", d["data_julgamento"] == "2026-07-17")
+    t("teor: sem JS residual", "carregarTurma" not in d["texto"][d["inicio_conteudo"]:])
+    t("teor: conteúdo começa na EMENTA (partes fora)", "AGRAVANTE" not in d["texto"][d["inicio_conteudo"]:][:300])
+    d2 = s.parse_teor(fx("08-relatorio-202640467.html"))
+    t("R1 fecho em minúscula ('acordam os membros do Grupo I da 2ª Câmara Cível')", d2["orgao_fecho"] == "2ª Câmara Cível")
+    t("R1 fecho do TJCE transcrito no voto não conta (não é ambíguo)", not d2["fecho_ambiguo"])
+    t("R1 data do fecho", d2["data_julgamento"] == "2026-07-24")
+    corpo = d["texto"][d["inicio_conteudo"]:]
+    # conferência
+    r = s.conferir(corpo, "veda aos pais ou representantes legais contrair obrigações em nome dos filhos incapazes")
+    t("confere literal", r["ok"])
+    r = s.conferir(corpo, "VEDA AOS PAIS [...] prévia autorização judicial")
+    t("confere com [...] e caixa", r["ok"])
+    t("ordem invertida não confere", not s.conferir(corpo, "prévia autorização judicial [...] veda aos pais")["ok"])
+    t("palavra inteira", not s.conferir(corpo, "veda aos pai")["ok"])
+    t("inventado não confere", not s.conferir(corpo, "o banco agiu com manifesta boa-fé")["ok"])
+    r = s.conferir(corpo, "CONTRATAÇÃO REALIZADA EM NOME DE MENOR ABSOLUTAMENTE INCAPAZ")
+    t("trecho de ementa do TJ-RO transcrita: ✅ com alerta de TRANSCRIÇÃO", r["ok"] and any("TRANSCRI" in x for x in r["alertas"]))
+    # ---- RT: regressões do red team de 21/09/2026 (references/red-team-2026-09-21.md) ----
+    import random, re as _re
+    tn = s.norm(corpo); i_fecho = _re.search(r"\bacordam\b", tn).start(); fxs = s.faixas_transcritas(tn, i_fecho)
+    t("RT1 faixas transcritas cobrem a maior parte do voto do fixture 03", 0.5 < sum(b - a for a, b in fxs) / len(tn) < 0.9)
+    r = s.conferir(corpo, "O valor arbitrado a título de dano moral mostra-se proporcional, razoável")
+    t("RT1 palavra do TJ-RO/TJ-MG longe da atribuição: ✅ COM alerta", r["ok"] and any("TRANSCRI" in a for a in r["alertas"]))
+    r = s.conferir(corpo, "veda aos pais ou representantes legais contrair obrigações em nome dos filhos incapazes")
+    t("RT1 ementa própria do TJSE: sem alerta de transcrição", r["ok"] and not any("TRANSCRI" in a for a in r["alertas"]))
+    r = s.conferir(corpo, "entendo que a mesma não pode se sobrepor ao código civil")
+    t("RT1 voto divergente do próprio TJSE: sem alerta de transcrição", r["ok"] and not any("TRANSCRI" in a for a in r["alertas"]))
+    bruto03 = fx("03-relatorio-202638463.html")
+    sint = bruto03.replace("nesta 1&ordf; C&acirc;mara C&iacute;vel, Grupo V,", "nesta 2&ordf; C&acirc;mara C&iacute;vel, reformando decis&atilde;o referendada pelo Tribunal Pleno,")
+    assert sint != bruto03, "o fixture mudou: a substituição sintética não pegou"
+    d3 = s.parse_teor(sint); t("RT2 órgão = o PRIMEIRO no texto do fecho, não o primeiro da lista", d3["orgao_fecho"] == "2ª Câmara Cível")
+    t("RT2 '1ª Turma Recursal' não vira 'Turma Recursal'", s.parse_teor(bruto03.replace("nesta 1&ordf; C&acirc;mara C&iacute;vel", "nesta 1&ordf; Turma Recursal"))["orgao_fecho"] == "1ª Turma Recursal")
+    for neg in ("o pedido é improcedente quanto", "nega-se", "rejeita-se a tese de que", "sem razão o apelante ao dizer que"):
+        r = s.conferir("Relatório. " + neg + " o banco deve restituir em dobro os valores descontados. Fim.", "o banco deve restituir em dobro os valores descontados")
+        t(f"RT6 negação detectada: {neg!r}", r["ok"] and any("NEGA" in a for a in r["alertas"]))
+    r = s.conferir("Não obstante o banco deve restituir em dobro os valores descontados. Fim.", "o banco deve restituir em dobro os valores descontados")
+    t("RT22 'não obstante' não é negação", r["ok"] and not any("NEGA" in a for a in r["alertas"]))
+    t("RT23 trecho de 1-2 palavras é recusado", not s.conferir(corpo, "de")["ok"] and "curto" in s.conferir(corpo, "o recurso")["erro"])
+    r = s.conferir(corpo, "Recurso conhecido e desprovido [...] A contratação de empréstimo consignado em nome de menor absolutamente incapaz")
+    t("RT24 [...] não costura partes distantes", not r["ok"])
+    t("RT18 'art . 42' do portal confere com 'art. 42'", s.conferir(corpo, "CDC, art. 42, parágrafo único")["ok"])
+    dd = s.parse_teor(bruto03.replace("em conformidade com relat&oacute;rio e voto.</p>", "em conformidade com relat&oacute;rio e voto.</p><p>Aracaju/SE, 10 de Julho de 2026.</p>", 1))
+    t("RT9 duas datas no fecho: usa a última e guarda as duas", dd["data_julgamento"] == "2026-07-17" and len(dd["datas_fecho"]) == 2)
+    t("RT15 'E M E N T A' espaçada é reconhecida", s.parse_teor(bruto03.replace(">EMENTA<", ">E M E N T A<"))["partes_cortadas"] or "E M E N T A" not in bruto03.replace(">EMENTA<", ">E M E N T A<"))
+    t("RT25 partícula do nome", s.nome_proprio("ANA LÚCIA FREIRE DE ALMEIDA DOS ANJOS") == "Ana Lúcia Freire de Almeida dos Anjos")
+    dois = colado_base = '<table><tr><td><font style="font-size: 7pt">' + "EMENTA " * 20 + '<br />PROCESSO: <a href="r">1</a><br />ACÓRDÃO: <a href="http://x/relatorio.wsp?tmp.numprocesso=111&amp;tmp.numacordao=333">333</a><br /><b>AC N&ordm; 1/2026</b><br /><b>RELATOR ORIGIN&Aacute;RIO: DES. VENCIDO DA SILVA</b><br /><b>RELATOR PARA O AC&Oacute;RD&Atilde;O: DES. VENCEDOR DE SOUZA</b></font></td></tr></table>'
+    i2 = s.parse_secao(dois)[0]
+    t("RT11 dois relatores: citável é o do acórdão, o originário fica no rótulo", i2["relator"] == "DES. VENCEDOR DE SOUZA" and "VENCIDO DA SILVA" in i2["relator_rotulo"])
+    t("RT28 'R$' não é radical", '"*' not in s.montar_fts(None, [["multa de R$"]], exato=True))
+    try: s.montar_fts(None, [["dano moral"], ["!!!"]]); t("RT14 grupo vazio é recusado", False)
+    except ValueError: t("RT14 grupo vazio é recusado", True)
+    t("RT27 menu com aspas escapadas", any(m["codigo"] == 9 for m in s.parse_menu('lastPage("C\xe2mara \\"Especial\\"<!--9-->","x","javascript:abre(\'9\',\'1\');")')))
+    # R3: paginação do WebIntegrator (achada em 21/09/2026: quatro seções com 995 itens EXATOS)
+    cauda = """</table> <a href="javascript:submitWIGrid('grid.lista_conteudoDiario',1)" class='nav_first'><b>Primeiro</b></a> <b class='nav_page'>1</b> <a href="javascript:submitWIGrid('grid.lista_conteudoDiario',1001)" class='nav_index'>2</a> <a href="javascript:submitWIGrid('grid.lista_conteudoDiario',1001)" class='nav_go'><b>Pr&oacute;ximo</b></a> <span id="wiGridNav"><form id="wiFormGridNav" name="wiFormGridNav" method="POST" action="/revista/internet/principal.wsp" style="display:none"> <input type="hidden" name="tmp.diario.cd_secao" value="6"> <input type="hidden" name="tmp.diario.nu_edicao" value="167"> <input type="hidden" name="tmp.diario.dc_caderno" value="1&ordf; C&acirc;mara C&iacute;vel"> <input type="hidden" name="tmp.diario.dt_diario" value="2026-07-31"> </form></span> </body> </html>"""
+    t("R3 há próxima página → 1001", s.proxima_posicao("x" * 9000 + cauda) == 1001)
+    t("R3 última página → None", s.proxima_posicao(fx("07-principal-168-sec5.html")) is None)
+    cg = s.campos_grid(cauda); t("R3 campos do grid", cg.get("tmp.diario.cd_secao") == "6" and cg.get("tmp.diario.dc_caderno") == "1ª Câmara Cível")
+    if not online:
+        s.guardar_bruto(900, 6, "<html>" + cauda, 1)
+        t("R3 seção com 'Próximo' e só 1 página em disco = INCOMPLETA", s.paginas_em_disco(900, 6) == (["<html>" + cauda], False))
+        s.guardar_bruto(900, 6, fx("07-principal-168-sec5.html"), 2)
+        pg, comp = s.paginas_em_disco(900, 6); t("R3 com a 2ª página = completa", comp and len(pg) == 2)
+    # RTB: regressões do 2º red team (references/red-team-2026-09-21-b.md)
+    for w, proibida in (("pais", "pal"), ("leis", "lel"), ("onus", "onu"), ("tres", "tr"), ("nao", "noes"), ("caos", "cao")):
+        t(f"RTB24 sem variante lixo: {w}", proibida not in s.variantes_numero(w))
+    r = s.conferir("Relatório. Sustenta o apelante que o contrato é nulo de pleno direito por vício de forma essencial. É o relatório.", "o contrato é nulo de pleno direito por vício de forma")
+    t("RTB1 ALEGAÇÃO DA PARTE", r["ok"] and any("ALEGA" in a for a in r["alertas"]))
+    sint_div = ("EMENTA. Apelação. ACORDAM os Desembargadores do Tribunal de Justiça do Estado de Sergipe, nesta 1ª Câmara Cível, por maioria. "
+                "VOTO. A cláusula é válida e o recurso deve ser desprovido integralmente. É como voto. Peço vênia para divergir do relator. "
+                "A cláusula é manifestamente abusiva e deve ser declarada nula de pleno direito.")
+    r = s.conferir(sint_div, "A cláusula é manifestamente abusiva e deve ser declarada nula")
+    t("RTB2 VOTO DIVERGENTE depois de 'peço vênia para divergir'", r["ok"] and any("DIVERGENTE" in a for a in r["alertas"]))
+    r = s.conferir(corpo, "veda aos pais ou representantes legais contrair obrigações em nome dos filhos incapazes")
+    t("RTB2 voto do relator, antes da divergência: sem alerta", not any("DIVERG" in a for a in s.conferir(sint_div, "A cláusula é válida e o recurso deve ser desprovido")["alertas"]))
+    t("RTB2 ementa da casa: sem alerta de divergência", r["ok"] and not any("DIVERG" in a for a in r["alertas"]))
+    tn8 = s.norm(s.parse_teor(fx("08-relatorio-202640467.html"))["texto"]); k8 = tn8.find("(tj-pr")
+    t("RTB1 '(tj-pr 0048…)' sem hífen fecha faixa", k8 > 0 and any(a <= k8 < b for a, b in s.faixas_transcritas(tn8, _re.search(r"\bacordam\b", tn8).start())))
+    t("RTB12 parêntese banal não é atribuição", not s._RE_ATRIB.search("(ai, rel. de forma clara, decidiu o juizo)") and not s._RE_ATRIB.search("(re)"))
+    t("RTB25 '§ 1º' = '§1º', 'nº 12' = 'n. 12', ligadura", s.norm("§ 1º do art. 5º") == s.norm("§1o do art. 5o") and s.norm("nº 12") == s.norm("n. 12") and s.norm("ﬁm") == "fim")
+    vg = '<table><tr><td><font style="font-size: 7pt">' + "EMENTA " * 20 + '<br />PROCESSO: <a href="r">1</a><br />ACÓRDÃO: <a href="http://x/relatorio.wsp?tmp.numprocesso=111&amp;tmp.numacordao=444">444</a><br /><b>AC N&ordm; 2/2026</b><br /><b>RELATOR ORIGIN&Aacute;RIO: VAGA DE DESEMBARGADOR (G-21)</b><br /><b>RELATOR SUBSTITUTO: JUIZ FULANO DE TAL</b></font></td></tr></table>'
+    t("RTB9 cargo vago cede ao substituto", s.parse_secao(vg)[0]["relator"] == "JUIZ FULANO DE TAL")
+    t("RTB16 rótulo com grafia errada não engole o nome", s.parse_secao(vg.replace("RELATOR SUBSTITUTO", "RELATOR SUBSTITTUTO"))[0]["relator"] == "JUIZ FULANO DE TAL")
+    try: s.montar_fts("dano §§§ moral", None); t("RTB17 pontuação pura é ignorada, termo com letra nunca some", True)
+    except ValueError: t("RTB17 pontuação pura é ignorada, termo com letra nunca some", False)
+    pg_consumidor = "<html><head></head><body><h4>Boletim n. 1</h4>" + "fraude com o código de segurança do cartão " * 5 + '<a href="relatorio.wsp?x">1</a></body></html>'
+    t("RTB6 'código de segurança' em ementa real não é desafio", any(x in pg_consumidor.lower() for x in ("relatorio.wsp",)))
+    # FTS
+    t("fts grupos (exato)", s.montar_fts(None, [["dano moral"], ["negativação", "inscrição indevida"]], exato=True) == '("dano moral") AND ("negativacao" OR "inscricao indevida")')
+    t("fts radical", s.montar_fts("consign$", None) == '"consign"*')
+    t("variantes: moral↔morais, acao↔acoes, desconto↔descontos", "morais" in s.variantes_numero("moral") and "acoes" in s.variantes_numero("acao") and "acao" in s.variantes_numero("acoes") and "descontos" in s.variantes_numero("desconto") and "indevido" in s.variantes_numero("indevidos"))
+    t("variantes: palavra curta e número ficam", s.variantes_numero("cdc") == ["cdc"] and s.variantes_numero("1691") == ["1691"])
+    e = s.montar_fts(None, [["dano moral"]]); t("frase expande número", '"danos morais"' in e and '"dano moral"' in e)
+    import sqlite3 as _sq; _c = _sq.connect(":memory:"); _c.execute('create virtual table f using fts5(t, tokenize="unicode61 remove_diacritics 2")')
+    _c.executemany("insert into f values(?)", [("DESCONTOS INDEVIDOS EM BENEFÍCIO",), ("AÇÕES COLETIVAS",), ("nada",)])
+    t("FTS5 aceita a expressão e acha o plural", len(_c.execute("select * from f where f match ?", (s.montar_fts(None, [["desconto indevido", "ação coletiva"]]),)).fetchall()) == 2)
+    for veneno in ['a" OR ementa:x', 'NEAR(a b)', '((( ', '*', 'ementa: teste', "auxílio-doença", 'x" AND "y']:
+        try: _c.execute("select * from f where f match ?", (s.montar_fts(None, [[veneno]]) or '"zzz"',)).fetchall(); okv = True
+        except ValueError: okv = True
+        except Exception: okv = False
+        t(f"sintaxe FTS5 não é injetável: {veneno!r}", okv)
+    try: s.montar_fts('"culpa E dolo"', None); t("'E' entre aspas aceito", True)
+    except ValueError: t("'E' entre aspas aceito", False)
+    # parser por célula (regressões do 1º uso real: 799/1610 relatores cortados na v0.1.0)
+    pl = s.parse_secao(fx("09-principal-168-pleno.html"))
+    t("R2 pleno: 43 itens sem anomalia", len(pl) == 43 and s.anomalias_secao(pl) == [])
+    t("R2 relator em <div> próprio / <font> aninhado", all(x["relator"] == "DESA. PRESIDENTE DO TRIBUNAL DE JUSTIÇA" for x in pl if x["acordao"] in ("202640802", "202640816")))
+    colado = '<table><tr><td><font style="font-size: 7pt">EMENTA X. ' + "Y" * 80 + '<br />PROCESSO: <a href="r?tmp.npro=1">1</a><br />ACÓRDÃO: <a href="http://x/relatorio.wsp?tmp.numprocesso=111&amp;tmp.numacordao=222">222</a><br /><b>AC N&ordm; 10491/2026</b><b>RELATORA ORIGIN&Aacute;RIA: DESA.</b><b>&nbsp;FULANA DE TAL</b></font></td></tr></table>'
+    ic = s.parse_secao(colado)[0]
+    t("R2 rótulo colado e nome em <b> separado", ic["recurso"] == "AC Nº 10491/2026" and ic["relator"] == "DESA. FULANA DE TAL" and ic["relator_rotulo"] == "RELATORA ORIGINÁRIA")
+    t("R2 anomalia denunciada", s.anomalias_secao([dict(ic, relator="")]) != [] and s.anomalias_secao([]) == ["nenhum acórdão reconhecido"])
+    try: s.montar_fts("dano E moral", None); t("operador recusado", False)
+    except ValueError: t("operador recusado", True)
+    # índice + busca (offline)
+    if not online:
+        con = s._db()
+        con.execute("INSERT OR REPLACE INTO edicoes VALUES(168,'72026','2026-08-31')"); con.commit()
+        t("indexa 2", s.indexar_secao(con, 168, 5, "Seção Especializada Cível", itens) == 2)
+        t("reindexar não duplica", s.indexar_secao(con, 168, 5, "Seção Especializada Cível", itens) == 0)
+        out = s.buscar(grupos=[["conflito de competencia"], ["superendividamento", "xyz"]])
+        t("busca acha sem acento", "202639853" in out and "1 resultado" in out)
+        t("busca diz cobertura e limites", "31/08/2026" in out and "Turmas Recursais" in out and "só ementa/índice" in out)
+        t("busca por número", "202639857" in s.buscar(numero="202600649163"))
+        t("zero resultado não é 'não localizado'", "NÃO é 'não localizado" in s.buscar(consulta="usucapião"))
+        t("filtro órgão", "Nada no índice" in s.buscar(consulta="competência", orgao="Câmara Criminal"))
+        t("plural acha singular no índice", "202639853" in s.buscar(consulta="conflitos negativos"))
+        t("exato não acha", "Nada no índice" in s.buscar(consulta="conflitos negativos", exato=True))
+        t("filtro de data exclui", "Nada no índice" in s.buscar(consulta="competência", data_inicio="01/09/2026"))
+        t("filtro de data inclui e avisa que é data do Boletim", "data do BOLETIM" in s.buscar(consulta="competência", data_inicio="01/08/2026", data_fim="31/08/2026"))
+        t("data inválida recusada", "recusada" in s.buscar(consulta="x", data_inicio="ontem"))
+        t("página além do fim não vira 'nada'", "além do fim" in s.buscar(consulta="competência", pagina=9))
+        t("LIKE não aceita curinga", "Nada no índice" in s.buscar(consulta="competência", orgao="%"))
+        t("ordenacao recentes", "202639853" in s.buscar(consulta="competência", ordenacao="recentes"))
+        t("diagnóstico por seção", "Seção Especializada Cível: 2 acórdãos" in s.diagnostico())
+        s.guardar_bruto(168, 5, fx("07-principal-168-sec5.html")); con.execute("UPDATE acordaos SET relator='TORTO'"); con.execute("UPDATE meta SET valor='0' WHERE chave='parser_versao'"); con.commit()
+        t("parser mudou → reindexa do bruto sem rede", s._db().execute("SELECT relator FROM acordaos WHERE acordao='202639853'").fetchone()[0] == "DES. CEZÁRIO SIQUEIRA NETO")
+        t("RT17 número CNJ é recusado com explicação, não vira 'nada'", "NÃO é 'não localizado'" in s.buscar(numero="0001234-56.2026.8.25.0001"))
+        rr = [dict(itens[0], ementa="EMENTA RETIFICADA " + itens[0]["ementa"])]
+        con.execute("INSERT OR REPLACE INTO edicoes VALUES(169,'82026','2026-09-30')"); s.indexar_secao(con, 169, 5, "Seção Especializada Cível", rr)
+        t("RT19 republicação é guardada e avisada", "REPUBLICADO" in s.buscar(numero="202639853"))
+        t("RTB19 data_inicio > data_fim é recusado", "recusada" in s.buscar(consulta="competência", data_inicio="31/12/2026", data_fim="01/01/2026"))
+        t("RTB20 filtro que zerou é nomeado", "foi o filtro que zerou" in s.buscar(consulta="competência", orgao="Câmara Criminal"))
+        t("RTB21 sem texto, a ordem anunciada é a real", "ordem: recentes" in s.buscar(numero="202639853"))
+        # disjuntor
+        t("diagnóstico livre", "livre" in s.diagnostico())
+        s._pausar(600, "teste"); s._pausar(10, "teste curto")
+        try: asyncio.run(s._pedir_vez()); t("pausa bloqueia", False)
+        except s.PesquisaNaoRealizada: t("pausa bloqueia", True)
+        t("pausa só cresce", s._ler_estado()["pausa_ate"] - __import__("time").time() > 500)
+        t("obter em pausa = PESQUISA NÃO REALIZADA", "PESQUISA NÃO REALIZADA" in asyncio.run(s.obter("202639853")))
+        open(s.ARQ_ESTADO, "w").write("{lixo")
+        t("estado ilegível = fail-closed", s._ler_estado()["pausa_ate"] > __import__("time").time())
+        import json as _j, time as _t
+        s._PAUSA_MEMORIA = 0
+        open(s.ARQ_ESTADO, "w").write(_j.dumps({"requisicoes": ["x", 1], "pausa_ate": "amanhã"}))
+        t("RT12 tipos errados no estado = fail-closed, sem TypeError", s._ler_estado()["pausa_ate"] > _t.time())
+        open(s.ARQ_ESTADO, "w").write(_j.dumps({"requisicoes": [_t.time() + 99999], "pausa_ate": 0}))
+        t("RT8 timestamp no futuro é podado (sem laço infinito)", s._ler_estado()["requisicoes"] == [])
+        asyncio.run(asyncio.wait_for(s._pedir_vez(), 5)); t("RT8 _pedir_vez retorna", True)
+        open(s.ARQ_ESTADO, "w").write(_j.dumps({"requisicoes": [], "pausa_ate": 0}))
+        pag = "<html><body>" + "x" * 900 + " golpe do falso captcha em site de banco " + "</body></html>"
+        t("RT7 'captcha' numa ementa não é desafio", not any(m in pag[:pag.lower().find("<body") + 250].lower() for m in s.MARCAS_DESAFIO))
+        s._pausar(600, "teste")
+        # recibo: grava do fixture e lê sem rede (mesmo em pausa)
+        s.gravar_recibo("202638463", "202600737656", fx("03-relatorio-202638463.html"))
+        o = asyncio.run(s.obter("202638463"))
+        t("obter pelo recibo, sem rede", "lido do disco" in o and "1ª Câmara Cível" in o and "17/07/2026" in o and "inteiro teor lido" in o)
+        t("partes omitidas por padrão", "AGRAVANTE" not in o)
+        v = asyncio.run(s.verificar("202638463", "voto pelo desprovimento do recurso"))
+        t("verificar ✅ pelo recibo", v.startswith("✅"))
+        t("verificar ❌", asyncio.run(s.verificar("202638463", "voto pelo provimento integral")).startswith("❌"))
+        rec_ruim = s.gravar_recibo("202639853", "202600632112", fx("03-relatorio-202638463.html"))  # HTML de OUTRO acórdão
+        t("RT4 recibo com HTML de outro acórdão é posto de lado", s.ler_recibo("202639853") is None and os.path.exists(s._arq_recibo("202639853") + ".inconsistente"))
+        rj = _j.load(open(s._arq_recibo("202638463"))); rj["html"] = rj["html"].replace("desprovido", "provido"); _j.dump(rj, open(s._arq_recibo("202638463"), "w"))
+        t("RT4 recibo adulterado (sha256 não bate) é recusado", s.ler_recibo("202638463") is None)
+        s.gravar_recibo("202638463", "202600737656", fx("03-relatorio-202638463.html"))
+        o2 = asyncio.run(s.obter("202638463", max_caracteres=3000))
+        t("RT10 saída cortada = 'EM PARTE'", "EM PARTE" in o2)
+        t("RTB22 max_caracteres negativo é saneado", "cortado em 2000" in asyncio.run(s.obter("202638463", max_caracteres=-10)))
+        import unittest.mock as _um
+        with _um.patch.object(s, "parse_teor", side_effect=lambda h: {"acordao": ""}):
+            rr_ = s.ler_recibo("202638463")
+        t("RTB7 parser que não reconhece o cabeçalho NÃO destrói o recibo", rr_ is not None and "aviso" in rr_ and os.path.exists(s._arq_recibo("202638463")))
+        t("RT3 promessa honesta sobre partes", "continuam nomeando" in o2)
+        t("RT20 recibos/ 0700", oct(os.stat(s.DIR_RECIBOS).st_mode)[-3:] == "700")
+        t("recibo 0600", oct(os.stat(s._arq_recibo("202638463")).st_mode)[-3:] == "600")
+    else:
+        o = asyncio.run(s.obter("202638463", "202600737656"))
+        print(o[:600]); t("online: inteiro teor", "1ª Câmara Cível" in o)
+    print(f"{ok} verificações OK, {falhas} falha(s)")
+    return 1 if falhas else 0
+
+if __name__ == "__main__":
+    sys.exit(main("--online" in sys.argv))

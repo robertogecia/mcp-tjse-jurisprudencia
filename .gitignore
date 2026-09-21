@@ -1,0 +1,7 @@
+base/
+recibos/
+.disjuntor_estado_tjse.json*
+.venv/
+__pycache__/
+*.bak-*
+.DS_Store

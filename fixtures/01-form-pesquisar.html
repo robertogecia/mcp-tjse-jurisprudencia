@@ -1,0 +1,288 @@
+<!--
+ÚLTIMA ATUALIZAÇÃO:
+
+AUTOR: MARCELO
+DATA: 06/08/2012
+DESCRIÇÃO: Novo campo nu_boletim para ficar como Nº Edição
+-->
+<html>
+<head>
+<LINK REL="StyleSheet" TYPE="text/css" HREF="/revista/css/page.css"/>
+<meta http-equiv="Content-Language" content="pt-br">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<META HTTP-EQUIV="pragma" CONTENT="no-cache"/>
+<META HTTP-EQUIV="expires" CONTENT="0"/>
+<title>Boletim Jurídico de Sergipe</title>
+<base target="_self">
+
+<style>
+
+TABLE.grid, TABLE.grid_semborda_cabecalho,TD.grid,TH.grid,TD.grid_center,TD.grid_right,TABLE.grid_semborda,TD.grid_semborda,TH.grid_semborda, TH.grid_semborda_cabecalho, TD.grid_center_marcado, TD.grid_right_marcado, TD.grid_marcado {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  color: #000000;
+  border-width : 0px 1px 1px 0px;
+  text-decoration: none;
+  border-color: #000000;
+  border-style : solid;
+  vertical-align: top;
+  padding : 3px;
+}
+
+TABLE.grid {
+  border-width : 1px 0px 0px 1px;
+  padding : 0px;
+}
+
+TD.grid_center {
+  text-align:center;
+}
+
+TH.grid {
+  background-color:#BEBEBE;
+}
+
+</style>
+
+<script type="text/javascript" src="/revista/js/wievent.js"></script>
+<script type="text/javascript" src="/revista/js/page.js"></script>
+<script>
+
+function comboSelect(combo,key) {
+  var err = window.onerror; window.onerror = new Function('return true');
+  if (!combo) return; combo.selectedIndex=-1; for (var i = 0; i < combo.options.length; i++) {
+    if (combo.multiple)
+      combo.options[i].selected=((","+key+",").indexOf(","+combo.options[i].value+",") != -1);
+    else
+      combo.options[i].selected=(combo.options[i].value == key);}window.onerror = err;
+}
+
+function popularSubSecao(id){
+  evt = new WIEvent();
+  if (id==''){id='-1'};
+  evt.writeobj("tmp.diario.cd_caderno", id);
+  evt.populateCombo("evtSubSecao", document.getElementsByName('tmp.diario.cd_secao')[0],'cd_secao','dc_secao');
+}
+
+function inicialize(){
+  comboSelect(document.getElementsByName("tmp.diario.cd_caderno")[0],"");
+  popularSubSecao('');
+  comboSelect(document.getElementsByName("tmp.diario.cd_secao")[0],"");
+}
+
+function ver(id){
+  var frm = document.forms[0];
+  wiOpen('inicial.wsp?tmp.diario.nu_edicao='+ id +
+         '&tmp.diario.cd_caderno=' + frm["tmp.diario.cd_caderno"].value +
+         '&tmp.diario.cd_secao=' + frm["tmp.diario.cd_secao"].value +
+         '&tmp.diario.dt_inicio=' + frm["tmp.diario.dt_inicio"].value +
+         '&tmp.diario.dt_fim=' + frm["tmp.diario.dt_fim"].value +
+         '&tmp.diario.id_advogado=' + frm["tmp.diario.id_advogado"].value +
+         '&tmp.diario.pal_chave=' + frm["tmp.diario.pal_chave"].value, 
+         '_blank', 'scrollbars=no,status=yes, resizable=yes');
+}
+
+function verSecao(id, caderno, secao){
+  var frm = document.forms[0];
+  wiOpen('inicial.wsp?tmp.diario.nu_edicao='+ id +
+         '&tmp.diario.cd_caderno=' + caderno +
+         '&tmp.diario.cd_secao=' + secao +
+         '&tmp.diario.dt_inicio=' + frm["tmp.diario.dt_inicio"].value +
+         '&tmp.diario.dt_fim=' + frm["tmp.diario.dt_fim"].value +
+         '&tmp.diario.id_advogado=' + frm["tmp.diario.id_advogado"].value +
+         '&tmp.diario.pal_chave=' + frm["tmp.diario.pal_chave"].value, 
+         '_blank', 'scrollbars=no,status=yes, resizable=yes');
+}
+
+//-----------------------------------------------------------------
+function separaData(data,retorno){
+//data no formato dd/MM/yyy e retorno igual a "D", "M" ou "Y"
+ var str = new String(data);
+ var dia = str.substring(0,2);
+ var mes = str.substring(3,5);
+ var ano = str.substr(6);
+ if (retorno == "D") return dia;
+ if (retorno == "M") return mes;
+ if (retorno == "Y") return ano;
+}
+
+function diferencaDias(data1,data2) {
+//datas no formato dd/MM/yyyy
+ var dia1 = separaData(data1,"D");
+ var mes1 = separaData(data1,"M");
+ var mes1 = Math.floor(mes1)-1;
+ var ano1 = separaData(data1,"Y");
+ var dt1 = new Date(ano1,mes1,dia1);
+
+ var dia2 = separaData(data2,"D");
+ var mes2 = separaData(data2,"M");
+ var mes2 = Math.floor(mes2)-1;
+ var ano2 = separaData(data2,"Y");
+ var dt2 = new Date(ano2,mes2,dia2);
+
+ var diferenca = dt1.getTime() - dt2.getTime();
+ var diferenca = Math.floor(diferenca / (1000 * 60 * 60 * 24));
+ return diferenca;
+}
+
+function chkRequiredCombo(frm, msg){
+  if (!msg || msg == "")
+  msg = "Campo obrigatório não preenchido";
+  var combo = frm.getElementsByTagName('SELECT');
+  for (var i = 0; i < combo.length; i++)
+  if (combo[i].getAttribute("REQUIRED") == "true")
+  if (combo[i].value == -1){
+  alert(msg);
+  combo[i].focus();
+  return false;
+  }
+  return true;
+}
+
+function gravar() {
+  var frm = document.forms[0];
+  if (chkRequired(frm) && chkRequiredCombo(frm)){
+    frm.target = "_self";
+    frm.action = 'pesquisar.wsp';
+    frm.submit();
+  }
+}
+
+function executarPesq(){
+  var dtIni = document.getElementsByName("tmp.diario.dt_inicio")[0];
+  var dtFim = document.getElementsByName("tmp.diario.dt_fim")[0];
+
+  if (dtFim.value != '' && dtIni.value != ''){
+    if (diferencaDias(dtFim.value ,dtIni.value) < 0){
+      alert('Data inicial não pode ser posterior à data final');
+      dtIni.select();
+      return false;
+    }
+
+    if (diferencaDias(dtFim.value ,dtIni.value) > 30){
+      alert('Intervalo máximo de 30 dias');
+      dtIni.select();
+      return false;
+    }
+  }
+
+  gravar();
+}
+//-----------------------------------------------------------------
+
+</script>
+</head>
+
+<!--==============================================================================================-->
+
+<body topmargin="0" leftmargin="0" rightmargin="0" bottommargin="0" marginwidth="0" marginheight="0" onload="inicialize();">
+<form name="formulario" method="post" action="pesquisar.wsp">
+
+<input type="hidden" name="tmp_origem" value="">
+
+<div align="center">
+<table style="font-family: Verdana; font-size: 8pt; width: 905px;" bgcolor="#EEEEEE" border="0" cellspacing="0">
+  <tr>
+    <td colspan="3">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td height="93" align="center" valign="top" background="../img/diario_da_justica_01.gif" colspan="3">
+             <table width="90%" border="0" cellspacing="0" cellpadding="0">
+               <tr>
+                <td width="106" height="93" align="center" valign="top"><img src="../img/diario_da_justica_03.gif" width="86" height="93" alt="" /></td>
+                <td align="left" valign="top" style="padding-top:14px;"><img src="../img/diario_da_justica_05.gif" width="289" height="62" alt="Di&aacute;rio da Justi&ccedil;a" /></td>
+                <td width="225" valign="bottom"><table width="205" border="0" cellspacing="0" cellpadding="0">
+               </tr>
+               <tr>
+                <td height="23" align="center" valign="middle" bgcolor="#FFFFFF" style="font-family:Tahoma, Arial, sans-serif; font-size:11px; color:#013863">Aracaju, 21 de setembro de 2026</td>               </tr>
+             </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td width="15%" style="padding-left: 10px"><br><b>Data inicial:<span style="color: red;">*</span></b></td>
+    <td width="85%"><br><b>Data Final:<span style="color: red;">*</span></b></td>
+  </tr>
+  <tr>
+    <td width="15%" style="padding-left: 10px;"><input type="text" onBlur="chkData(this,'dd/MM/yyyy');"  name="tmp.diario.dt_inicio" value="30/04/2026" size="10" maxlength="10" required="true"></td>
+    <td width="15%"><input type="text" onBlur="chkData(this,'dd/MM/yyyy');" name="tmp.diario.dt_fim" value="31/08/2026" size="10" maxlength="10" required="true"></td>
+  </tr>
+
+  <tr>
+    <td width="30%" colspan="2" style="padding-left: 10px;"><b>Seção:</b></td>
+  </tr>
+  <tr>
+    <td width="50%" colspan="3" style="padding-left: 10px;">
+      <select size="1" name="tmp.diario.cd_caderno" onChange="popularSubSecao(this.value);">
+      <option value="" selected>Todas...</option>
+        <option  value="7">1ª Câmara Cível</option>
+<option  value="8">2ª Câmara Cível</option>
+<option  value="11">Abreviaturas</option>
+<option  value="10">Câmara Criminal</option>
+<option  value="6">Seção Especializada Cível</option>
+<option  value="5">Tribunal Pleno</option>
+      </select></td>
+  </tr>
+
+  <tr>
+    <td width="50%" colspan="3" style="padding-left: 10px;"><b>Subseção:</b></td>
+  </tr>
+  <tr>
+  <td width="50%" colspan="3" style="padding-left: 10px;">
+      <select size="1" name="tmp.diario.cd_secao">
+      <option value="" selected>Todas...</option>
+      </select></td>
+  </tr>
+
+  <tr>
+    <td height="100%" colspan="3" style="padding-left: 10px;"><b>Palavra chave:</b></td>
+  </tr>
+  <tr>
+    <td height="100%" colspan="3" style="padding-left: 10px;"><input type="text" name="tmp.diario.pal_chave" size="57" value=""></td>
+  </tr>
+  <tr>
+    <th colspan="3" height="31">
+        <input type="button" onClick="executarPesq();" value="Enviar" name="tmp.bntEnviar"/>
+        <input type="button" onClick="window.location='pesquisar.wsp';"value="Limpar" name="tmp.bntReset"/>
+    </th>
+  </tr>
+  <tr BGCOLOR="#FFFFFF"><td colspan="3" align="right">*Campos Obrigatórios</td></tr>
+</table>
+<table border="0" cellspacing="0">
+</div>
+<INPUT NAME="wi.token" ID="wi.token" VALUE="4AQX7J56KVX6UU9TPYTB" TYPE="hidden"/>
+<INPUT NAME="tmp.diario.id_advogado" VALUE="" TYPE="hidden"/>
+</form>
+<br>
+<center><table style="width: 90%" cellpadding="0" cellspacing="0" class="grid" align="center">
+<tr>
+  <th class='grid' colspan='3'>Nº Edição</th>
+</tr><tr>
+  <td class='grid_center'><a href="#" onClick="ver('164');"><b>32026</b><br><i>(30 de Abril de 2026)</i></a>&nbsp;</td>
+<td class='grid_center'><a href="#" onClick="ver('165');"><b>42026</b><br><i>(29 de Maio de 2026)</i></a>&nbsp;</td>
+<td class='grid_center'><a href="#" onClick="ver('166');"><b>52026</b><br><i>(30 de Junho de 2026)</i></a>&nbsp;</td>
+</tr><tr>
+  <td class='grid_center'><a href="#" onClick="ver('167');"><b>62026</b><br><i>(31 de Julho de 2026)</i></a>&nbsp;</td>
+<td class='grid_center'><a href="#" onClick="ver('168');"><b>72026</b><br><i>(31 de Agosto de 2026)</i></a>&nbsp;</td>
+<td class='grid_center'>&nbsp;</td>
+</tr></table></center>
+<script>
+
+function AbreJanela(){
+  if(document.formulario.tmp_origem.value=='INTERNA'){
+     wiOpen('http://192.168.200.138/index.html','_blank','top=5,left=5,width=750,height=500,toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,copyhistory=no,resizable=yes');
+   }else{ 
+     wiOpen('http://200.254.108.138/','_blank','top=5,left=5,width=750,height=500,toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,copyhistory=no,resizable=yes');
+  }
+}
+</script>
+
+<script src='/revista/js/gridnav.js' type='text/javascript'></script>
+<span id="wiGridNav"><form id="wiFormGridNav" name="wiFormGridNav" method="POST" action="/revista/internet/pesquisar.wsp" style="display:none">
+<input type="hidden" name="tmp.diario.dt_fim" value="31/08/2026">
+<input type="hidden" name="tmp.diario.dt_inicio" value="30/04/2026">
+</form></span>
+</body>
+</html>
