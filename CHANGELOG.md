@@ -1,5 +1,20 @@
 # Histórico
 
+- **v0.7.5 (22/09/2026)** — índice completo pela primeira vez: **38.283 acórdãos** em 11 edições (30/10/2025 a
+  31/08/2026), sem aviso de lacuna. A ed. 159 ficava eternamente incompleta porque é de 28/11/2025 e a janela padrão
+  de sincronização é de 3 meses — nenhuma chamada padrão a alcançaria. Correções: (a) `VERSAO` ficara em "0.7.3" no
+  commit da v0.7.4, e o rótulo vaza para o User-Agent e para os recibos; (b) a sincronização imprimia "todas as
+  edições estão completas" e "⚠ ed. 159 incompleta" no MESMO texto, porque o resumo descontava as seções que voltaram
+  sem acórdão e o aviso do índice não; (c) **timeout de rede deixou de pausar o servidor por 30 min** — com seções de
+  câmara cível acima de 2 MB o timeout é evento esperado, e a pausa deixava o advogado sem nem conferir citação já em
+  disco; só recusa do portal (403/429/desafio) arma o disjuntor; (d) **escada de ritmo adaptativa** — recusa do portal
+  aperta um degrau (6 s/20 → 12 s/10 → 30 s/6 → 60 s/3), 100 consultas limpas afrouxam, e o diagnóstico mostra o
+  degrau corrente; (e) docstring da busca (14 parâmetros) reescrita em `Args:`/`Returns:`. (c), (d) e (e) vieram da
+  comparação linha a linha com `servidor_trf1.py`, feita por agente Opus; o relatório com a mão inversa — o que o
+  TRF1 deve adotar do TJSE — está em `~/MCP/trf1-jurisprudencia/references/correcoes-determinadas-2026-09-22.md`.
+  **Rejeitado por medição:** contar resultado por julgamento em vez de por documento (40 processos com mais de um
+  acórdão em 38.283, 0,1%, e agrupar esconderia o resultado dos embargos). 208 verificações.
+
 - **v0.1.0 (21/09/2026)** — reconhecimento (Turnstile no formulário oficial; Boletim + `relatorio.wsp` sem desafio), primeira versão.
 - **v0.2.0 (21/09/2026)** — o PRIMEIRO uso real pelas tools achou **799 de 1.610 relatores cortados**: o HTML do Boletim é
   irregular (relator em `<div>` próprio, `<font>` aninhado, rótulo colado no nº do recurso). `parse_secao` reescrito por célula

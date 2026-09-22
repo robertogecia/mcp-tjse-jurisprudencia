@@ -83,7 +83,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.7.4"
+VERSAO = "0.7.5"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
