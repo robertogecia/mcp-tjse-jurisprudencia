@@ -37,7 +37,7 @@ sob demanda e guardado como **recibo** (com sha256), de modo que conferir uma ci
 
 **A ementa do TJSE é estruturada** (padrão CNJ) em dois terços dos acórdãos: caso em exame, questão em discussão,
 razões de decidir, dispositivo e tese. `em="questao,tese"` procura só onde o tribunal enuncia o que decidiu — é bem
-mais preciso que varrer a ementa inteira. Quem não segue o padrão tem tudo em `cabecalho`, então buscar por campo
+mais preciso que varrer a ementa inteira (mais preciso, não mais abrangente: medido, não recupera acórdão perdido). Quem não segue o padrão tem tudo em `cabecalho`, então buscar por campo
 não perde acórdão: apenas deixa de distingui-lo.
 
 **O grafo de citações sai das próprias ementas**, do campo "Jurisprudência relevante citada" que o tribunal preenche
@@ -50,6 +50,10 @@ Cada busca com 5 ou mais resultados abre com um **panorama** de todas as ementas
 órgão, classe, súmulas/temas/IRDR citados e o vocabulário que distingue o conjunto (pista para novos grupos de sinônimos).
 É amostragem para decidir o que ler — "recurso provido" por outro fundamento também conta como provido.
 Busca que zera diz qual grupo zera. Acórdãos do mesmo processo (embargos) são avisados.
+
+**Como escrever a consulta.** Palavras soltas combinam por OU e o ranking ordena, então a pergunta em português
+corrente funciona ("idoso analfabeto empréstimo consignado assinatura não comprovada"). O que estiver "entre aspas"
+é obrigatório, e `grupos` exige um termo de cada grupo. A medição em `harness/` compara as duas formas.
 
 Fluxo: `diagnostico` → `sincronizar` (se faltar período) → `buscar` → `obter_inteiro_teor` → `verificar_citacao` antes de qualquer aspas.
 

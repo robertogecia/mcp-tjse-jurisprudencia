@@ -83,3 +83,14 @@
   N acórdãos deste índice") na linha de cada resultado. Achado do próprio teste: "Súmula 297" e "Súmula 297/STJ" eram
   duas chaves para a mesma súmula, contada em dobro; o tribunal agora é reconhecido antes ou depois do número.
   Reindexação completa dos 8.974 acórdãos a partir do HTML bruto em disco: 6,6 segundos, zero rede.
+
+- **v0.7.1 (21/09/2026)** — harness de busca (gold set de 6 consultas e 73 acórdãos essenciais, montado por um agente
+  às cegas, varrendo o banco sem usar a busca) e a correção que ele exigiu. **A pergunta escrita como se fala dava
+  0 % de recall nas 6 consultas**: a consulta livre exigia TODAS as palavras, artigo e preposição inclusive. Agora as
+  palavras soltas combinam por OU (o ranking ordena), "entre aspas" e `grupos` é que são obrigatórios, e as palavras
+  de praxe do jargão não entram. Medido de novo com o mesmo gabarito: 43 %, 67 %, 72 %, 78 %, 93 % e 100 % — em quatro
+  das seis, a pergunta em português passou à frente dos grupos de sinônimos montados à mão.
+  O harness também mostrou o que NÃO vale: a busca por campo da v0.7.0 não recupera nenhum acórdão perdido (ela dá
+  precisão, não alcance — a FTS já lê a ementa inteira), e a busca semântica resolveria só 3 dos 40 casos perdidos,
+  contra 37 que sinônimos melhores alcançam. **Embeddings ficam fora por decisão medida, não por palpite.**
+  Fica aberto: `recall@10` ainda é baixo (6–13 %) porque o OU traz muito e o ranking não premia quem casa mais termos.

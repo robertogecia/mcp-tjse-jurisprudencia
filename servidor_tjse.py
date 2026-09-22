@@ -750,8 +750,21 @@ def _frase_fts(termo: str, exato: bool = False) -> str:
     return fr[0] if len(fr) == 1 else "(" + " OR ".join(fr) + ")"
 
 
+# Palavras que não distinguem um acórdão de outro. Sem removê-las, a pergunta em português vira um E lógico com
+# artigo e preposição dentro — e o harness mediu o resultado disso: 0 % de recall nas 6 consultas (21/09/2026).
+_VAZIAS = set("""a o as os um uma uns umas de do da dos das em no na nos nas por para pelo pela pelos pelas com sem
+sob sobre entre ate apos ante e ou mas que se qual quais quando onde como porque pois ja nao sim ha he ser sao foi
+era eram tem tinha teve havia deve devem pode podem ha existe existem qualquer algum alguma cabe cabivel caso casos
+direito processual civil acordao decisao recurso apelacao agravo parte partes autos processo juizo tribunal camara
+seguinte seguintes mesmo mesma outro outra seu sua seus suas este esta isso aquilo lhe lhes ao aos""".split())
+
+
 def partes_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool = False) -> list[tuple[str, str]]:
-    """[(rótulo legível, expressão FTS)] — um item por grupo e por termo da consulta livre."""
+    """[(rótulo legível, expressão FTS)] — um item por grupo, mais UM item com as palavras soltas da consulta.
+
+    Palavras soltas combinam por OU (o ranking põe no topo quem tem mais delas); "entre aspas" e `grupos` é que
+    são obrigatórios. Antes todas as palavras eram obrigatórias, e uma pergunta escrita como se fala não achava
+    nada — era a forma mais natural de usar a ferramenta e a única que devolvia zero."""
     partes = []
     for g in grupos or []:
         fr = [f for f in (_frase_fts(x, exato) for x in g) if f]
@@ -764,13 +777,23 @@ def partes_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool
         if re.search(r"\b(E|OU|NAO|NÃO|ADJ\d*|PROX\d*|AND|OR|NOT|NEAR)\b", fora_de_aspas):
             raise ValueError("operador em caixa alta não é aceito na `consulta` (índice local FTS5): use `grupos` "
                              "— cada grupo é OU entre sinônimos, grupos se combinam em E.")
+        soltas = []
         for m in re.finditer(r'"([^"]+)"|(\S+)', consulta):
-            tok = m.group(1) or m.group(2)
+            aspas, tok = bool(m.group(1)), (m.group(1) or m.group(2))
             f = _frase_fts(tok, exato)
-            if f:
-                partes.append((tok, f))
-            elif re.search(r"\w", tok, flags=re.U):
-                raise ValueError(f"o termo {tok!r} não é pesquisável neste índice — se sumisse em silêncio, o E deixaria de valer.")
+            if not f:
+                continue
+            if aspas:
+                partes.append((f'"{tok}"', f))  # entre aspas = o usuário quer exatamente isso: obrigatório
+            elif norm(tok) not in _VAZIAS and len(re.sub(r"\W", "", norm(tok), flags=re.U)) > 2:
+                soltas.append((tok, f))
+        if len(soltas) == 1:
+            partes.append(soltas[0])
+        elif soltas:
+            partes.append((" ou ".join(t for t, _ in soltas), "(" + " OR ".join(f for _, f in soltas) + ")"))
+        elif not partes:
+            raise ValueError("a consulta só tem palavras comuns (artigos, preposições, palavras de praxe do jargão), "
+                             "que não distinguem um acórdão de outro — use termos do tema, ou `grupos`.")
     return partes
 
 
@@ -1013,6 +1036,33 @@ def ler_recibo(acordao: str) -> dict | None:
     return None
 
 
+def _bruto(corpo: str, tn: str, pos_norm: int) -> int:
+    """Posição no texto BRUTO equivalente a `pos_norm` no texto normalizado. norm() só colapsa e remove: a razão
+    entre os comprimentos é estável, então caminha-se do palpite proporcional até casar o contexto."""
+    if pos_norm <= 0:
+        return 0
+    if pos_norm >= len(tn):
+        return len(corpo)
+    alvo = norm(tn[pos_norm: pos_norm + 40])[:24]
+    if not alvo:
+        return min(len(corpo), int(pos_norm * len(corpo) / max(len(tn), 1)))
+    chute = min(len(corpo) - 1, int(pos_norm * len(corpo) / max(len(tn), 1)))
+    for raio in (60, 400, 2000, len(corpo)):
+        ini, fim = max(0, chute - raio), min(len(corpo), chute + raio)
+        k = norm(corpo[ini:fim]).find(alvo)
+        if k < 0:
+            continue
+        # k é índice no normalizado do recorte: reconstrói caminhando caractere a caractere
+        conta = 0
+        for i in range(ini, fim):
+            if len(norm(corpo[ini:i + 1])) > conta:
+                conta = len(norm(corpo[ini:i + 1]))
+            if conta > k:
+                return i
+        return ini
+    return chute
+
+
 def _campos_de_custodia(rec: dict) -> dict:
     """Campos no formato dos recibos dos MCPs do TJRO e do STJ — `id_documento`, `nr_processo`, `texto` — para que um
     verificador de fichas (ex.: lint de citações de peça) confira o que foi citado contra o que o portal entregou."""
@@ -1027,9 +1077,13 @@ def _campos_de_custodia(rec: dict) -> dict:
     return {"id_documento": rec["acordao"], "nr_processo": rec["processo"], "tribunal": "TJSE", "tipo": "ACÓRDÃO",
             "data_julgamento": br(d.get("data_julgamento")), "orgao": d.get("orgao_fecho") or "", "relator": d.get("relator") or "",
             "texto": corpo,
-            "texto_transcrito": " \n".join(tn[a:b] for a, b in faixas_transcritas(tn, ini)),
-            "texto_divergente": tn[div[0]: div[1]] if div else "",
-            "normalizacao": "sem acento, minúsculas, espaço único (campos *_transcrito e *_divergente)"}
+            # EM BRUTO, recortado do próprio `texto`: quem lê o recibo aplica a SUA normalização, a mesma que usa no
+            # `texto`. Gravar já normalizado obrigava o leitor a ter a mesma função que o servidor — e duas
+            # normalizações quase iguais deixam passar exatamente o que o alerta existe para pegar (red team do
+            # lint, 21/09/2026, L1: "nº 7" virava "n 7" aqui e "no 7" lá).
+            "trechos_transcritos": [corpo[_bruto(corpo, tn, a): _bruto(corpo, tn, b)] for a, b in faixas_transcritas(tn, ini)],
+            "trecho_divergente": corpo[_bruto(corpo, tn, div[0]):] if div else "",
+            "normalizacao": "trechos em bruto, recortados de `texto` — normalize com a sua própria função"}
 
 
 def gravar_recibo(acordao: str, processo: str, html_bruto: str) -> dict:

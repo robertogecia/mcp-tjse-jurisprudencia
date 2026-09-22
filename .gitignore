@@ -5,3 +5,6 @@ recibos/
 __pycache__/
 *.bak-*
 .DS_Store
+harness/_db_index.json
+harness/_cand_*.txt
+harness/_resultado_bruto.json
