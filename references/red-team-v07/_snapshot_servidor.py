@@ -170,26 +170,8 @@ def limpar_html(frag: str) -> str:
     return re.sub(r"\n\s*\n+", "\n", t).strip()
 
 
-def _tabela_sem_acento() -> dict[int, str]:
-    """Latin-1 Supplement + Latin Extended-A resolvidos uma vez, para `str.translate` — 30x mais rápido que
-    decompor caractere a caractere, e o panorama normaliza milhões de caracteres por busca."""
-    tab = {}
-    for cp in range(0xC0, 0x250):
-        ch = chr(cp)
-        base = "".join(c for c in unicodedata.normalize("NFD", ch) if unicodedata.category(c) != "Mn")
-        if base and base != ch:
-            tab[cp] = base
-    return tab
-
-
-_TAB_SEM_ACENTO = _tabela_sem_acento()
-
-
 def sem_acento(s: str) -> str:
-    t = s.translate(_TAB_SEM_ACENTO)
-    if t.isascii():
-        return t
-    return "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
 def norm_orgao(s: str) -> str:
@@ -837,9 +819,7 @@ def _aviso_incompletas(con: sqlite3.Connection) -> str:
 # Panorama dos resultados. Ideia do servidor do TJRO (resumo de resultados por página, âncoras de precedente qualificado),
 # adaptada: aqui o índice é local, então o resumo cobre TODAS as ementas que casam (até PANORAMA_MAX), não só a página.
 # Índice é indício: serve para decidir o que ler e para achar âncoras, nunca como posição sobre a tese.
-# amostra do topo por relevância: 800 diz o mesmo que 3.000 sobre a distribuição, e são as ementas que de fato
-# interessam. Acima disso o custo é do `norm` de milhões de caracteres, não da consulta.
-PANORAMA_MAX = 800
+PANORAMA_MAX = 3000
 # "não conhecido" só vale quando o SUJEITO é o recurso/ação ("recurso não conhecido"); "não conhecimento" de um argumento
 # isolado, ou "ordem denegada", não são resultado do julgamento (medido: 65 casos, vários falsos na 1ª regra)
 _RE_NAO_CONHECIDO = re.compile(r"\b(?:recurso|apelacao|agravo|embargos|acao|revisao criminal|mandado de seguranca|incidente|"
@@ -861,11 +841,11 @@ _RE_ANCORAS = [
 ]
 
 
-def resultado_declarado(ementa: str, ja_normalizado: bool = False) -> str | None:
+def resultado_declarado(ementa: str) -> str | None:
     """'desprovido' | 'provido' | 'parcialmente provido' | 'não conhecido' | None (ausente ou ambíguo). Lê a ementa inteira
     e só devolve quando UM lado é inequívoco: ementa que menciona dois (voto vencido, "autor provido, réu desprovido",
     histórico da origem) fica sem rótulo — nunca é forçada para um lado."""
-    t = ementa if ja_normalizado else norm(ementa)
+    t = norm(ementa)
     achou = set()
     if _RE_NAO_CONHECIDO.search(t):
         achou.add("não conhecido")
@@ -916,8 +896,7 @@ _STOP_VOCAB = set("""recurso conhecido provido desprovido acordao decisao agravo
     questao discussao apelante apelado agravante agravado recorrente recorrido sentenca juizo primeiro grau parte partes""".split())
 
 
-def pistas_vocabulario(con: sqlite3.Connection, ementas: list[str], excluir: set[str], max_itens: int = 12,
-                       ja_normalizado: bool = False) -> list[str]:
+def pistas_vocabulario(con: sqlite3.Connection, ementas: list[str], excluir: set[str], max_itens: int = 12) -> list[str]:
     """Palavras bem mais frequentes nas ementas que casam do que no índice inteiro (lift), candidatas a novo grupo de
     sinônimos. Usa fts5vocab: o custo é uma consulta em lote."""
     n = len(ementas)
@@ -925,7 +904,7 @@ def pistas_vocabulario(con: sqlite3.Connection, ementas: list[str], excluir: set
         return []
     df: dict[str, int] = {}
     for e in ementas:
-        for w in set(re.findall(r"[a-z]{5,}", e if ja_normalizado else norm(e))):
+        for w in set(re.findall(r"[a-z]{5,}", norm(e))):
             df[w] = df.get(w, 0) + 1
     piso = max(4, int(n * 0.06))
     cand = [w for w, c in df.items() if c >= piso and w not in _STOP_VOCAB and w not in excluir]
@@ -954,9 +933,8 @@ def panorama(con: sqlite3.Connection, sql: str, args: list, por_bm25: bool, tota
     orgs: dict[str, int] = {}
     clas: dict[str, int] = {}
     cit: dict[str, int] = {}
-    normalizadas = [norm(x[2]) for x in linhas]
-    for (orgao, classe, em), en in zip(linhas, normalizadas):
-        k = resultado_declarado(en, ja_normalizado=True) or "sem resultado identificável"
+    for orgao, classe, em in linhas:
+        k = resultado_declarado(em) or "sem resultado identificável"
         res[k] = res.get(k, 0) + 1
         orgs[orgao] = orgs.get(orgao, 0) + 1
         clas[classe] = clas.get(classe, 0) + 1
@@ -965,7 +943,7 @@ def panorama(con: sqlite3.Connection, sql: str, args: list, por_bm25: bool, tota
     top = lambda d, n=6: " · ".join(f"{k} {v}" for k, v in sorted(d.items(), key=lambda kv: -kv[1])[:n])
     ordem_res = ["desprovido", "provido", "parcialmente provido", "não conhecido", "sem resultado identificável"]
     resumo = " · ".join(f"{k} {res[k]}" for k in ordem_res if k in res)
-    pistas = pistas_vocabulario(con, normalizadas, excluir, ja_normalizado=True)
+    pistas = pistas_vocabulario(con, [x[2] for x in linhas], excluir)
     ancs = " · ".join(f"{k} ({v})" for k, v in sorted(cit.items(), key=lambda kv: -kv[1])[:8] if v >= 2)
     parcial = f" (as {PANORAMA_MAX} mais relevantes de {total})" if total > PANORAMA_MAX else ""
     out = [f"PANORAMA das {len(linhas)} ementas que casam{parcial} — indício para decidir o que ler, NÃO posição sobre a tese "

@@ -94,3 +94,12 @@
   precisão, não alcance — a FTS já lê a ementa inteira), e a busca semântica resolveria só 3 dos 40 casos perdidos,
   contra 37 que sinônimos melhores alcançam. **Embeddings ficam fora por decisão medida, não por palpite.**
   Fica aberto: `recall@10` ainda é baixo (6–13 %) porque o OU traz muito e o ranking não premia quem casa mais termos.
+
+- **v0.7.2 (21/09/2026)** — ranking e custo, medidos com o harness antes e depois. Com palavras soltas em OU, um
+  acórdão que casava UM termo periférico disputava o topo com outro que casava todos: a ordenação passa a premiar
+  **quantos termos da consulta o acórdão casa**, e cada resultado mostra "casa 5/6 termos". `recall@50` médio subiu
+  de 37 % para 49 %; `recall@10` de 6 % para 17 % na consulta bancária e de 0 % para 7 % na de responsabilidade do
+  Estado. (O "recall total" do medidor é recall@200: onde ele oscila, é redistribuição dentro do teto, não perda.)
+  A busca ficou 3,7× mais rápida no caminho novo (2,8 s → 0,75 s): o gargalo não era a consulta, era o panorama
+  normalizando milhões de caracteres — `sem_acento` passou a usar tabela de tradução, cada ementa é normalizada uma
+  vez só, e a amostra do panorama caiu de 3.000 para as 800 mais relevantes, que dizem o mesmo sobre a distribuição.

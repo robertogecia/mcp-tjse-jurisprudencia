@@ -1,0 +1,963 @@
+{
+  "_meta": {
+    "fonte": "corpus local TJSE (base/boletim.db, cópia em /tmp/vocab), 8.974 ementas jun-ago/2026",
+    "metodo": "leitura dos essenciais perdidos em harness/medicao-2026-09-21.md + mineração de coocorrência (references/vocabulario/mine.py, ver medir_vocab.py) sobre ementas+campos; nenhum termo foi inventado, todo termo tem pelo menos 1 acórdão de exemplo verificado no banco",
+    "origem_valores": {
+      "semente": "termo já usado nos grupos originais do gold.json/harness",
+      "coocorrencia": "termo achado com alta frequência relativa dentro do conjunto de acórdãos que contêm as sementes do conceito, frente à frequência geral do corpus",
+      "flexao": "variação de gênero/número/forma verbal que o motor (sem stemming pt-BR agressivo) não cobre sozinho",
+      "sigla": "abreviação ou sigla de uso corrente equivalente ao termo por extenso"
+    }
+  },
+  "conceitos": [
+    {
+      "conceito": "idoso_analfabeto_bancario",
+      "termos": [
+        {
+          "termo": "idoso",
+          "origem": "semente",
+          "exemplos": [
+            "202618207",
+            "202619643"
+          ]
+        },
+        {
+          "termo": "idosa",
+          "origem": "flexao",
+          "exemplos": [
+            "202631626"
+          ]
+        },
+        {
+          "termo": "analfabeto",
+          "origem": "semente",
+          "exemplos": [
+            "202640049",
+            "202631655"
+          ]
+        },
+        {
+          "termo": "analfabeta",
+          "origem": "flexao",
+          "exemplos": [
+            "202631626"
+          ]
+        },
+        {
+          "termo": "analfabetismo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202626568",
+            "202631590"
+          ]
+        },
+        {
+          "termo": "hipervulnerável",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628700",
+            "202640450"
+          ]
+        },
+        {
+          "termo": "hipervulnerabilidade",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628700",
+            "202631649"
+          ]
+        },
+        {
+          "termo": "tarifas bancárias",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621247",
+            "202627962"
+          ]
+        },
+        {
+          "termo": "assinatura a rogo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627718",
+            "202631626"
+          ]
+        },
+        {
+          "termo": "avalista",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628034"
+          ]
+        },
+        {
+          "termo": "cédula de crédito bancário",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639834"
+          ]
+        },
+        {
+          "termo": "beneficiário do INSS",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630160",
+            "202631590"
+          ]
+        },
+        {
+          "termo": "aposentado",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639834"
+          ]
+        }
+      ],
+      "nota": "'iletrado' foi testado por hipótese e NÃO ocorre nenhuma vez no corpus (doc_geral=0, no_alvo=0) — não entrou na lista final, ver medicao-vocabulario.md"
+    },
+    {
+      "conceito": "plano_saude_autismo",
+      "termos": [
+        {
+          "termo": "autismo",
+          "origem": "semente",
+          "exemplos": [
+            "202638478"
+          ]
+        },
+        {
+          "termo": "transtorno do espectro autista",
+          "origem": "semente",
+          "exemplos": [
+            "202627175"
+          ]
+        },
+        {
+          "termo": "TEA",
+          "origem": "sigla",
+          "exemplos": [
+            "202640036",
+            "202640143"
+          ]
+        },
+        {
+          "termo": "menor impúbere",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628871"
+          ]
+        },
+        {
+          "termo": "infante",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627748"
+          ]
+        },
+        {
+          "termo": "método ABA",
+          "origem": "semente",
+          "exemplos": [
+            "202627209",
+            "202627748"
+          ]
+        },
+        {
+          "termo": "autogestão",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628444",
+            "202642169"
+          ]
+        },
+        {
+          "termo": "cerceamento de defesa",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627175"
+          ]
+        },
+        {
+          "termo": "taxatividade mitigada",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640036"
+          ]
+        },
+        {
+          "termo": "descredenciamento",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202624884",
+            "202632286"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "cartao_consignado_rmc",
+      "termos": [
+        {
+          "termo": "cartão de crédito consignado",
+          "origem": "semente",
+          "exemplos": [
+            "202640299"
+          ]
+        },
+        {
+          "termo": "RMC",
+          "origem": "sigla",
+          "exemplos": [
+            "202640299",
+            "202626590"
+          ]
+        },
+        {
+          "termo": "RCC",
+          "origem": "sigla",
+          "exemplos": [
+            "202628695",
+            "202627809"
+          ]
+        },
+        {
+          "termo": "reserva de margem consignável",
+          "origem": "semente",
+          "exemplos": [
+            "202627682",
+            "202642176"
+          ]
+        },
+        {
+          "termo": "biometria facial",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628869",
+            "202640299"
+          ]
+        },
+        {
+          "termo": "termo de consentimento",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640299"
+          ]
+        },
+        {
+          "termo": "BPC/LOAS",
+          "origem": "sigla",
+          "exemplos": [
+            "202627951",
+            "202629277"
+          ]
+        },
+        {
+          "termo": "menor absolutamente incapaz",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627951",
+            "202629277"
+          ]
+        },
+        {
+          "termo": "prescrição quinquenal",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627154"
+          ]
+        },
+        {
+          "termo": "exercício regular de direito",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202624988",
+            "202626737"
+          ]
+        },
+        {
+          "termo": "preclusão temporal",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640756",
+            "202627809"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "negativacao_dano_moral",
+      "termos": [
+        {
+          "termo": "negativação",
+          "origem": "semente",
+          "exemplos": [
+            "202630417"
+          ]
+        },
+        {
+          "termo": "inscrição indevida",
+          "origem": "semente",
+          "exemplos": [
+            "202628515",
+            "202628613"
+          ]
+        },
+        {
+          "termo": "cadastro de inadimplentes",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628515"
+          ]
+        },
+        {
+          "termo": "órgão de proteção ao crédito",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640362"
+          ]
+        },
+        {
+          "termo": "SCR",
+          "origem": "sigla",
+          "exemplos": [
+            "202630417",
+            "202626707"
+          ]
+        },
+        {
+          "termo": "sistema de informações de crédito",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630858",
+            "202626707"
+          ]
+        },
+        {
+          "termo": "Súmula 385",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630634",
+            "202627052"
+          ]
+        },
+        {
+          "termo": "in re ipsa",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630417"
+          ]
+        },
+        {
+          "termo": "quantum indenizatório",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630417",
+            "202626339"
+          ]
+        },
+        {
+          "termo": "protesto",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202642678"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "responsabilidade_civil_estado",
+      "termos": [
+        {
+          "termo": "responsabilidade civil do Estado",
+          "origem": "semente",
+          "exemplos": [
+            "202628657"
+          ]
+        },
+        {
+          "termo": "ilegitimidade passiva",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628657",
+            "202623326"
+          ]
+        },
+        {
+          "termo": "lixão",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627081"
+          ]
+        },
+        {
+          "termo": "concessionária de serviço público",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628344"
+          ]
+        },
+        {
+          "termo": "coisa julgada",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628657"
+          ]
+        },
+        {
+          "termo": "detento",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639791"
+          ]
+        },
+        {
+          "termo": "suicídio",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639791"
+          ]
+        },
+        {
+          "termo": "abordagem policial",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640397"
+          ]
+        },
+        {
+          "termo": "erro médico",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621422",
+            "202622362"
+          ]
+        },
+        {
+          "termo": "violência obstétrica",
+          "origem": "semente",
+          "exemplos": [
+            "202622362"
+          ]
+        },
+        {
+          "termo": "teoria do risco administrativo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621422"
+          ]
+        },
+        {
+          "termo": "cirurgia eletiva",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640649"
+          ]
+        },
+        {
+          "termo": "SUS",
+          "origem": "sigla",
+          "exemplos": [
+            "202640649"
+          ]
+        }
+      ],
+      "nota": "'omissão do poder público' testado como sinônimo direto e NÃO ocorre no corpus como frase — o vocabulário real do tribunal prefere 'omissão' junto de termos concretos (ver medicao-vocabulario.md)"
+    },
+    {
+      "conceito": "usucapiao",
+      "termos": [
+        {
+          "termo": "usucapião",
+          "origem": "semente",
+          "exemplos": [
+            "202640324"
+          ]
+        },
+        {
+          "termo": "prescrição aquisitiva",
+          "origem": "semente",
+          "exemplos": [
+            "202629504"
+          ]
+        },
+        {
+          "termo": "posse mansa e pacífica",
+          "origem": "semente",
+          "exemplos": [
+            "202627260"
+          ]
+        },
+        {
+          "termo": "animus domini",
+          "origem": "semente",
+          "exemplos": [
+            "202629504"
+          ]
+        },
+        {
+          "termo": "accessio possessionis",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202631529"
+          ]
+        },
+        {
+          "termo": "terreno de marinha",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202622161",
+            "202628302"
+          ]
+        },
+        {
+          "termo": "aforamento",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628302"
+          ]
+        },
+        {
+          "termo": "usucapiendo",
+          "origem": "flexao",
+          "exemplos": [
+            "202622229",
+            "202628894"
+          ]
+        },
+        {
+          "termo": "abandono da causa",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640644"
+          ]
+        },
+        {
+          "termo": "defensor dativo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202627723"
+          ]
+        },
+        {
+          "termo": "área pública",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621038",
+            "202628894"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "dano_moral_geral",
+      "termos": [
+        {
+          "termo": "dano moral",
+          "origem": "semente",
+          "exemplos": [
+            "202631522"
+          ]
+        },
+        {
+          "termo": "dano extrapatrimonial",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202629660"
+          ]
+        },
+        {
+          "termo": "quantum indenizatório",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628489"
+          ]
+        },
+        {
+          "termo": "in re ipsa",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202631522"
+          ]
+        },
+        {
+          "termo": "abalo moral",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202626986"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "prescricao",
+      "termos": [
+        {
+          "termo": "prescrição",
+          "origem": "semente",
+          "exemplos": [
+            "202625577"
+          ]
+        },
+        {
+          "termo": "prescrição quinquenal",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628677"
+          ]
+        },
+        {
+          "termo": "prescrição trienal",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640225"
+          ]
+        },
+        {
+          "termo": "decadência",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621466"
+          ]
+        },
+        {
+          "termo": "prazo prescricional",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202625577"
+          ]
+        },
+        {
+          "termo": "termo inicial",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202625577"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "honorarios",
+      "termos": [
+        {
+          "termo": "honorários",
+          "origem": "semente",
+          "exemplos": [
+            "202630288"
+          ]
+        },
+        {
+          "termo": "honorários advocatícios",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630288"
+          ]
+        },
+        {
+          "termo": "honorários sucumbenciais",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202631536"
+          ]
+        },
+        {
+          "termo": "majoração",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202629433"
+          ]
+        },
+        {
+          "termo": "defensor dativo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202638612"
+          ]
+        },
+        {
+          "termo": "art. 85",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202614202",
+            "202615773"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "tutela_urgencia",
+      "termos": [
+        {
+          "termo": "tutela de urgência",
+          "origem": "semente",
+          "exemplos": [
+            "202626663"
+          ]
+        },
+        {
+          "termo": "tutela antecipada",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202629588"
+          ]
+        },
+        {
+          "termo": "tutela provisória",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202622441"
+          ]
+        },
+        {
+          "termo": "periculum in mora",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639825"
+          ]
+        },
+        {
+          "termo": "fumus boni iuris",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202626663"
+          ]
+        },
+        {
+          "termo": "liminar",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628683"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "juros_correcao",
+      "termos": [
+        {
+          "termo": "juros de mora",
+          "origem": "semente",
+          "exemplos": [
+            "202628822"
+          ]
+        },
+        {
+          "termo": "correção monetária",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628822"
+          ]
+        },
+        {
+          "termo": "índice de atualização",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640328"
+          ]
+        },
+        {
+          "termo": "termo inicial dos juros",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202621797"
+          ]
+        },
+        {
+          "termo": "SELIC",
+          "origem": "sigla",
+          "exemplos": [
+            "202628822"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "cerceamento_defesa",
+      "termos": [
+        {
+          "termo": "cerceamento de defesa",
+          "origem": "semente",
+          "exemplos": [
+            "202625080"
+          ]
+        },
+        {
+          "termo": "indeferimento de prova",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202625080"
+          ]
+        },
+        {
+          "termo": "nulidade processual",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628245"
+          ]
+        },
+        {
+          "termo": "instrução probatória",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628540",
+            "202627175"
+          ]
+        },
+        {
+          "termo": "prova pericial",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202640044"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "responsabilidade_civil_bancaria",
+      "termos": [
+        {
+          "termo": "instituição financeira",
+          "origem": "semente",
+          "exemplos": [
+            "202630646"
+          ]
+        },
+        {
+          "termo": "ônus da prova",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630646"
+          ]
+        },
+        {
+          "termo": "responsabilidade objetiva",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628019"
+          ]
+        },
+        {
+          "termo": "falha na prestação do serviço",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202628489"
+          ]
+        },
+        {
+          "termo": "CDC",
+          "origem": "sigla",
+          "exemplos": [
+            "202630646"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "obrigacao_de_fazer",
+      "termos": [
+        {
+          "termo": "obrigação de fazer",
+          "origem": "semente",
+          "exemplos": [
+            "202639800"
+          ]
+        },
+        {
+          "termo": "astreintes",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202639800",
+            "202638478"
+          ]
+        },
+        {
+          "termo": "multa cominatória",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202630241"
+          ]
+        },
+        {
+          "termo": "tutela específica",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202629351"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "gratuidade_justica",
+      "termos": [
+        {
+          "termo": "gratuidade da justiça",
+          "origem": "semente",
+          "exemplos": [
+            "202631798"
+          ]
+        },
+        {
+          "termo": "assistência judiciária gratuita",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202623475"
+          ]
+        },
+        {
+          "termo": "hipossuficiência",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202631798"
+          ]
+        },
+        {
+          "termo": "presunção de pobreza",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202623548"
+          ]
+        }
+      ]
+    },
+    {
+      "conceito": "precedente_qualificado_repetitivo",
+      "termos": [
+        {
+          "termo": "tema repetitivo",
+          "origem": "semente",
+          "exemplos": [
+            "202619626",
+            "202619767"
+          ]
+        },
+        {
+          "termo": "recurso repetitivo",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202617881"
+          ]
+        },
+        {
+          "termo": "IRDR",
+          "origem": "sigla",
+          "exemplos": [
+            "202640704"
+          ]
+        },
+        {
+          "termo": "afetação",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202629167"
+          ]
+        },
+        {
+          "termo": "sobrestamento",
+          "origem": "coocorrencia",
+          "exemplos": [
+            "202622369"
+          ]
+        }
+      ]
+    }
+  ]
+}
