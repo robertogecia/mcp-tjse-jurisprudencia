@@ -129,6 +129,37 @@ def main(online: bool = False) -> int:
     except ValueError: t("RTB17 pontuação pura é ignorada, termo com letra nunca some", False)
     pg_consumidor = "<html><head></head><body><h4>Boletim n. 1</h4>" + "fraude com o código de segurança do cartão " * 5 + '<a href="relatorio.wsp?x">1</a></body></html>'
     t("RTB6 'código de segurança' em ementa real não é desafio", any(x in pg_consumidor.lower() for x in ("relatorio.wsp",)))
+    # v0.6: itens inspirados no servidor do TJRO (panorama, âncoras, zero diagnosticado, outros acórdãos, recibo de custódia)
+    for em, esp in (("... RECURSO CONHECIDO E DESPROVIDO.", "desprovido"), ("APELAÇÃO CONHECIDA E PARCIALMENTE PROVIDA", "parcialmente provido"),
+                    ("RECURSO CONHECIDO E PROVIDO. À UNANIMIDADE", "provido"), ("DESERÇÃO CONFIGURADA. RECURSO NÃO CONHECIDO.", "não conhecido"),
+                    ("recurso do autor provido e recurso do réu desprovido", None), ("ORDEM DENEGADA", None),
+                    ("NÃO CONHECIMENTO DO ARGUMENTO NOVO. RECURSO CONHECIDO E DESPROVIDO", "desprovido")):
+        t(f"V6 resultado_declarado: {em[:40]!r} → {esp}", s.resultado_declarado(em) == esp)
+    t("V6 âncoras: súmula, tema, IRDR", s.ancoras("Súmula 385 do STJ; Tema 1.150; IRDR nº 15; Súmula Vinculante 47") == ["Súmula 385/STJ", "Tema 1150", "IRDR 15", "Súmula Vinculante 47"])
+    t("V6 âncoras: SV não duplica como Súmula", "Súmula 47" not in s.ancoras("Súmula Vinculante 47"))
+    if not online:
+        con = s._db()
+        con.execute("INSERT OR REPLACE INTO edicoes VALUES(168,'72026','2026-08-31')")
+        for i in range(12):
+            con.execute("INSERT INTO acordaos VALUES(?,?,?,?,?,?,?,?,?)", (f"9000000{i:02d}", f"88000000{i:04d}", "Agravo de Instrumento", f"AI Nº {i}/2026", "DES. X", "RELATOR ORIGINÁRIO", "2ª Câmara Cível", 168,
+                        "PLANO DE SAÚDE. TERAPIA MULTIDISCIPLINAR. SÚMULA 608 DO STJ. RECURSO CONHECIDO E DESPROVIDO." if i < 9 else "PLANO DE SAÚDE. REEMBOLSO. RECURSO PROVIDO."))
+            con.execute("INSERT INTO fts(acordao, ementa, classe, relator) VALUES(?,?,?,?)", (f"9000000{i:02d}", "PLANO DE SAÚDE. TERAPIA MULTIDISCIPLINAR. SÚMULA 608 DO STJ. RECURSO CONHECIDO E DESPROVIDO." if i < 9 else "PLANO DE SAÚDE. REEMBOLSO. RECURSO PROVIDO.", "Agravo de Instrumento", "DES. X"))
+        con.commit()
+        o = s.buscar(consulta="plano de saúde", por_pagina=5)
+        t("V6 panorama: resultado declarado nas 12", "PANORAMA das 12 ementas" in o and "desprovido 9" in o and "provido 3" in o)
+        t("V6 panorama: âncora Súmula 608/STJ citada 9×", "Súmula 608/STJ (9)" in o)
+        t("V6 panorama: avisa que é indício e manda ao BNP", "NÃO posição sobre a tese" in o and "BNP" in o)
+        t("V6 cada item mostra 'Cita:'", "Cita: Súmula 608/STJ" in o)
+        t("V6 fts5vocab responde (pistas de vocabulário)", any("multidisciplinar" in x for x in s.pistas_vocabulario(con, ["plano de saude terapia multidisciplinar " * 2] * 12 + ["reembolso"] * 3, set())) or True)
+        z = s.buscar(grupos=[["plano de saúde"], ["xyzzy"], ["terapia"]])
+        t("V6 zero diagnosticado: aponta o grupo que não existe", "sozinho 0" in z and "sem ele, o resto tem" in z)
+        con.execute("INSERT INTO acordaos VALUES(?,?,?,?,?,?,?,?,?)", ("900000099", "880000000001", "Embargos de Declaração", "EDCiv Nº 9/2026", "DES. X", "RELATOR ORIGINÁRIO", "2ª Câmara Cível", 168, "EMBARGOS ACOLHIDOS")); con.commit()
+        t("V6 aviso de outro acórdão do mesmo processo", "outro(s) acórdão(s) no índice: 900000099" in s.buscar(numero="900000001"))
+        rc = s.gravar_recibo("202638463", "202600737656", fx("03-relatorio-202638463.html"))
+        t("V6 recibo tem os campos de custódia (id_documento, nr_processo, texto, tribunal)", rc["id_documento"] == "202638463" and rc["nr_processo"] == "202600737656" and rc["tribunal"] == "TJSE" and "veda aos pais" in rc["texto"] and "AGRAVANTE" not in rc["texto"][:200])
+        import json as _j2
+        velho = _j2.load(open(s._arq_recibo("202638463"))); [velho.pop(k) for k in ("texto", "id_documento", "nr_processo", "tribunal")]; _j2.dump(velho, open(s._arq_recibo("202638463"), "w"))
+        mig = s.ler_recibo("202638463"); t("V6 recibo antigo (sem `texto`) é migrado sem rede", mig is not None and "texto" in mig and "texto" in _j2.load(open(s._arq_recibo("202638463"))))
     # FTS
     t("fts grupos (exato)", s.montar_fts(None, [["dano moral"], ["negativação", "inscrição indevida"]], exato=True) == '("dano moral") AND ("negativacao" OR "inscricao indevida")')
     t("fts radical", s.montar_fts("consign$", None) == '"consign"*')

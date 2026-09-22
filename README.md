@@ -32,6 +32,11 @@ sob demanda e guardado como **recibo** (com sha256), de modo que conferir uma ci
 | `verificar_citacao_tjse` | confere se o trecho está **literalmente** no acórdão e avisa **de quem é a frase**: transcrição de outro tribunal, voto divergente, alegação da parte, trecho entre aspas, negação logo antes | 1ª vez |
 | `diagnostico_tjse` | disjuntor, consumo, cobertura do índice por órgão, modo | não |
 
+Cada busca com 5 ou mais resultados abre com um **panorama** de todas as ementas que casam: resultado declarado,
+órgão, classe, súmulas/temas/IRDR citados e o vocabulário que distingue o conjunto (pista para novos grupos de sinônimos).
+É amostragem para decidir o que ler — "recurso provido" por outro fundamento também conta como provido.
+Busca que zera diz qual grupo zera. Acórdãos do mesmo processo (embargos) são avisados.
+
 Fluxo: `diagnostico` → `sincronizar` (se faltar período) → `buscar` → `obter_inteiro_teor` → `verificar_citacao` antes de qualquer aspas.
 
 ## Modo híbrido: sozinho ou com outras fontes
@@ -63,7 +68,7 @@ Em `integracoes/` há material opcional para quem usa Claude Code: uma skill aut
 - A ementa do Boletim vem em CAIXA ALTA e pode diferir da original: aspas só depois de `verificar_citacao_tjse`.
 - O voto do TJSE costuma **transcrever ementas e até fechos de outros tribunais**. O alerta de transcrição pega a grande
   maioria desses casos (medição em `CHANGELOG.md`), mas não substitui ler o acórdão.
-- O inteiro teor nomeia partes — às vezes menor de idade e seu representante. `recibos/` e `base/` ficam com
+- O inteiro teor nomeia partes — às vezes menor de idade e seu representante. o recibo traz `id_documento`, `nr_processo`, `tribunal` e `texto`, para verificadores de ficha de citação; `recibos/` e `base/` ficam com
   permissão 0700/0600 e fora do versionamento. **Não publique recibos.** Os fixtures deste repositório foram anonimizados.
 - O disjuntor é compartilhado entre processos pelo disco. Se o disco não aceitar gravação, a pausa vale só para o processo
   que a sofreu, e sem a trava nenhum processo requisita (fail-closed).

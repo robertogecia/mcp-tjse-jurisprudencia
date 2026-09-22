@@ -83,12 +83,12 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.5.0"
+VERSAO = "0.6.0"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
 DIR_BASE = os.path.join(DIR_DADOS, "base")
-DIR_RECIBOS = os.path.join(DIR_DADOS, "recibos")
+DIR_RECIBOS = os.environ.get("TJSE_DIR_RECIBOS") or os.path.join(DIR_DADOS, "recibos")
 ARQ_DB = os.path.join(DIR_BASE, "boletim.db")
 DIR_SECOES = os.path.join(DIR_BASE, "secoes")  # HTML bruto de cada seção: reparse sem rede
 
@@ -485,6 +485,7 @@ def _db() -> sqlite3.Connection:
     CREATE TABLE IF NOT EXISTS acordaos(acordao TEXT PRIMARY KEY, processo TEXT, classe TEXT, recurso TEXT,
                                         relator TEXT, relator_rotulo TEXT, orgao TEXT, edicao INTEGER, ementa TEXT);
     CREATE TABLE IF NOT EXISTS meta(chave TEXT PRIMARY KEY, valor TEXT);
+    CREATE VIRTUAL TABLE IF NOT EXISTS fts_vocab USING fts5vocab(fts, 'row');
     CREATE TABLE IF NOT EXISTS republicacoes(acordao TEXT, edicao INTEGER, ementa TEXT, PRIMARY KEY(acordao, edicao));
     CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(acordao UNINDEXED, ementa, classe, relator,
                                                       tokenize="unicode61 remove_diacritics 2");
@@ -637,16 +638,15 @@ def _frase_fts(termo: str, exato: bool = False) -> str:
     return fr[0] if len(fr) == 1 else "(" + " OR ".join(fr) + ")"
 
 
-def montar_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool = False) -> str:
-    """grupos=[[a,b],[c]] → (a OU b) E (c). consulta livre: palavras e "frases" em E. Por padrão cada termo casa
-    também no outro número (singular/plural); `exato=True` desliga."""
+def partes_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool = False) -> list[tuple[str, str]]:
+    """[(rótulo legível, expressão FTS)] — um item por grupo e por termo da consulta livre."""
     partes = []
     for g in grupos or []:
         fr = [f for f in (_frase_fts(x, exato) for x in g) if f]
         if not fr:
             raise ValueError(f"o grupo {g!r} não tem nenhum termo pesquisável (só pontuação?) — se ele sumisse em silêncio, "
                              "o E entre grupos deixaria de valer.")
-        partes.append("(" + " OR ".join(fr) + ")")
+        partes.append(("[" + " | ".join(g) + "]", "(" + " OR ".join(fr) + ")"))
     if consulta:
         fora_de_aspas = re.sub(r'"[^"]*"', " ", consulta)
         if re.search(r"\b(E|OU|NAO|NÃO|ADJ\d*|PROX\d*|AND|OR|NOT|NEAR)\b", fora_de_aspas):
@@ -656,10 +656,16 @@ def montar_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool
             tok = m.group(1) or m.group(2)
             f = _frase_fts(tok, exato)
             if f:
-                partes.append(f)
+                partes.append((tok, f))
             elif re.search(r"\w", tok, flags=re.U):
                 raise ValueError(f"o termo {tok!r} não é pesquisável neste índice — se sumisse em silêncio, o E deixaria de valer.")
-    return " AND ".join(partes)
+    return partes
+
+
+def montar_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool = False) -> str:
+    """grupos=[[a,b],[c]] → (a OU b) E (c). consulta livre: palavras e "frases" em E. Por padrão cada termo casa
+    também no outro número (singular/plural); `exato=True` desliga."""
+    return " AND ".join(e for _, e in partes_fts(consulta, grupos, exato))
 
 
 def _aviso_incompletas(con: sqlite3.Connection) -> str:
@@ -668,6 +674,162 @@ def _aviso_incompletas(con: sqlite3.Connection) -> str:
            AND (SELECT COUNT(*) FROM secoes s WHERE s.edicao=e.edicao) < 5 ORDER BY 1""")]
     return (f". ⚠ EDIÇÕES INCOMPLETAS no intervalo ({', '.join(inc)}): há seções faltando ou só parcialmente baixadas — "
             "zero resultado vale ainda menos; rode `sincronizar_boletim_tjse`") if inc else ""
+
+
+# Panorama dos resultados. Ideia do servidor do TJRO (resumo de resultados por página, âncoras de precedente qualificado),
+# adaptada: aqui o índice é local, então o resumo cobre TODAS as ementas que casam (até PANORAMA_MAX), não só a página.
+# Índice é indício: serve para decidir o que ler e para achar âncoras, nunca como posição sobre a tese.
+PANORAMA_MAX = 3000
+# "não conhecido" só vale quando o SUJEITO é o recurso/ação ("recurso não conhecido"); "não conhecimento" de um argumento
+# isolado, ou "ordem denegada", não são resultado do julgamento (medido: 65 casos, vários falsos na 1ª regra)
+_RE_NAO_CONHECIDO = re.compile(r"\b(?:recurso|apelacao|agravo|embargos|acao|revisao criminal|mandado de seguranca|incidente|"
+                               r"reclamacao|conflito|apelo)s?(?: \w+){0,4}? (?:nao (?:se )?conhecid\w+|nao conhecimento)|"
+                               r"\bnao conhec(?:o|eram|eu|er|imento) d[oa]s? (?:recurso|apelacao|agravo|embargos|apelo)")
+_RE_PARCIAL = re.compile(r"\bparcialmente provid\w+|\bprovid\w+ em parte|\bparcial provimento|\bdar? (?:-se )?parcial provimento|"
+                         r"\bdeu-se parcial provimento|\bdera(?:m)? parcial provimento")
+_RE_DESPROV = re.compile(r"\bdesprovi\w+|\bimprovi\w+|\bnao provid\w+|\bnegar? (?:-se )?provimento|\bnega-se provimento|"
+                         r"\bnegou provimento|\bnegado provimento|\bprovimento negado")
+_RE_PROV = re.compile(r"(?<!des)(?<!im)(?<!nao )\bprovid[oa]s?\b|\bdar? (?:-se )?provimento|\bdeu-se provimento|\bderam provimento|"
+                      r"\bdou provimento")
+_RE_ANCORAS = [
+    (re.compile(r"s[úu]mula\s+vinculante\s+n?[º°.]*\s*(\d{1,4})", re.I), "Súmula Vinculante %s"),
+    # o número da súmula colide entre tribunais (Súmula 7 do STJ ≠ do TJSE): quando o texto diz de quem é, o rótulo diz
+    (re.compile(r"s[úu]mula\s+n?[º°.]*\s*(\d{1,4})(?:\s*/\s*|\s+d[oa]\s+)?(STJ|STF|TJSE|TST)?", re.I), "Súmula %s"),
+    (re.compile(r"tema\s+(?:repetitivo\s+|de\s+repercuss[ãa]o\s+geral\s+)?n?[º°.]*\s*(\d{1,4}(?:\.\d{3})?)", re.I), "Tema %s"),
+    (re.compile(r"\bIRDR\s+n?[º°.]*\s*(\d{1,4})", re.I), "IRDR %s"),
+    (re.compile(r"\bIAC\s+n?[º°.]*\s*(\d{1,4})", re.I), "IAC %s"),
+]
+
+
+def resultado_declarado(ementa: str) -> str | None:
+    """'desprovido' | 'provido' | 'parcialmente provido' | 'não conhecido' | None (ausente ou ambíguo). Lê a ementa inteira
+    e só devolve quando UM lado é inequívoco: ementa que menciona dois (voto vencido, "autor provido, réu desprovido",
+    histórico da origem) fica sem rótulo — nunca é forçada para um lado."""
+    t = norm(ementa)
+    achou = set()
+    if _RE_NAO_CONHECIDO.search(t):
+        achou.add("não conhecido")
+    parcial = _RE_PARCIAL.search(t)
+    if parcial:
+        achou.add("parcialmente provido")
+        t = _RE_PARCIAL.sub(" ", t)
+    if _RE_DESPROV.search(t):
+        achou.add("desprovido")
+        t = _RE_DESPROV.sub(" ", t)
+    if _RE_PROV.search(t):
+        achou.add("provido")
+    return next(iter(achou)) if len(achou) == 1 else None
+
+
+def ancoras(texto: str, max_itens: int = 6) -> list[str]:
+    achado: dict[str, int] = {}
+    for rx, molde in _RE_ANCORAS:
+        for m in rx.finditer(str(texto or "")):
+            n = m.group(1).replace(".", "")
+            if not n or n == "0":
+                continue
+            nome = molde % n
+            if m.lastindex and m.lastindex >= 2 and m.group(2):
+                nome += f"/{m.group(2).upper()}"
+            if nome.startswith("Súmula ") and f"Súmula Vinculante {n}" in achado:
+                continue
+            achado.setdefault(nome, m.start())
+    return [n for n, _ in sorted(achado.items(), key=lambda kv: kv[1])][:max_itens]
+
+
+_STOP_VOCAB = set("""recurso conhecido provido desprovido acordao decisao agravo apelacao relator camara civel interposto contra
+    embargos direito processual civil ementa turma tribunal justica sergipe tese julgamento unanimidade unanime votos voto
+    dispositivo relevantes citados jurisprudencia constituicao federal codigo artigo artigos casos exame razoes decidir
+    questao discussao apelante apelado agravante agravado recorrente recorrido sentenca juizo primeiro grau parte partes""".split())
+
+
+def pistas_vocabulario(con: sqlite3.Connection, ementas: list[str], excluir: set[str], max_itens: int = 12) -> list[str]:
+    """Palavras bem mais frequentes nas ementas que casam do que no índice inteiro (lift), candidatas a novo grupo de
+    sinônimos. Usa fts5vocab: o custo é uma consulta em lote."""
+    n = len(ementas)
+    if n < 8:
+        return []
+    df: dict[str, int] = {}
+    for e in ementas:
+        for w in set(re.findall(r"[a-z]{5,}", norm(e))):
+            df[w] = df.get(w, 0) + 1
+    piso = max(4, int(n * 0.06))
+    cand = [w for w, c in df.items() if c >= piso and w not in _STOP_VOCAB and w not in excluir]
+    if not cand:
+        return []
+    total = con.execute("SELECT COUNT(*) FROM acordaos").fetchone()[0] or 1
+    geral = {}
+    for k in range(0, len(cand), 400):
+        lote = cand[k:k + 400]
+        for r in con.execute(f"SELECT term, doc FROM fts_vocab WHERE term IN ({','.join('?' * len(lote))})", lote):
+            geral[r[0]] = r[1]
+    pont = []
+    for w in cand:
+        lift = (df[w] / n) / (max(geral.get(w, 1), 1) / total)
+        if lift >= 2.5:
+            pont.append((lift * (df[w] ** 0.5), w, df[w], lift))
+    return [f"{w} ({c}, ×{l:.0f})" for _, w, c, l in sorted(pont, reverse=True)[:max_itens]]
+
+
+def panorama(con: sqlite3.Connection, sql: str, args: list, por_bm25: bool, total: int, excluir: set[str]) -> str:
+    ordem = "r.rk" if por_bm25 else "a.edicao DESC"
+    linhas = con.execute(f"SELECT a.orgao, a.classe, a.ementa{sql} ORDER BY {ordem} LIMIT {PANORAMA_MAX}", args).fetchall()
+    if len(linhas) < 5:
+        return ""
+    res: dict[str, int] = {}
+    orgs: dict[str, int] = {}
+    clas: dict[str, int] = {}
+    cit: dict[str, int] = {}
+    for orgao, classe, em in linhas:
+        k = resultado_declarado(em) or "sem resultado identificável"
+        res[k] = res.get(k, 0) + 1
+        orgs[orgao] = orgs.get(orgao, 0) + 1
+        clas[classe] = clas.get(classe, 0) + 1
+        for a in set(ancoras(em, 12)):
+            cit[a] = cit.get(a, 0) + 1
+    top = lambda d, n=6: " · ".join(f"{k} {v}" for k, v in sorted(d.items(), key=lambda kv: -kv[1])[:n])
+    ordem_res = ["desprovido", "provido", "parcialmente provido", "não conhecido", "sem resultado identificável"]
+    resumo = " · ".join(f"{k} {res[k]}" for k in ordem_res if k in res)
+    pistas = pistas_vocabulario(con, [x[2] for x in linhas], excluir)
+    ancs = " · ".join(f"{k} ({v})" for k, v in sorted(cit.items(), key=lambda kv: -kv[1])[:8] if v >= 2)
+    parcial = f" (as {PANORAMA_MAX} mais relevantes de {total})" if total > PANORAMA_MAX else ""
+    out = [f"PANORAMA das {len(linhas)} ementas que casam{parcial} — indício para decidir o que ler, NÃO posição sobre a tese "
+           "(recurso provido por outro fundamento também conta como provido):",
+           f"  Resultado declarado na ementa: {resumo}",
+           f"  Por órgão (seção do Boletim): {top(orgs)}",
+           f"  Por classe: {top(clas)}"]
+    if ancs:
+        out.append(f"  Citados nas ementas: {ancs} — precedentes qualificados: âncora para novo grupo de busca; confirme a "
+                   "situação de cada um na fonte própria (súmula/tema/IRDR se confere no BNP do CNJ, e superação na fonte oficial)")
+    if pistas:
+        out.append("  Vocabulário que distingue estas ementas do resto do índice (termo (ementas, × frequência relativa)): "
+                   + ", ".join(pistas) + " — hipótese de sinônimo/conceito vizinho para um novo grupo; a busca confirma ou descarta")
+    return "\n".join(out) + "\n"
+
+
+def diagnostico_zero(con: sqlite3.Connection, partes: list[tuple[str, str]]) -> str:
+    """Busca que zerou: qual grupo/termo zera, e o que aconteceria sem cada um (análogo ao 'você quis dizer' do TJRO)."""
+    if len(partes) < 2:
+        return ""
+    cont = lambda ex: con.execute("SELECT COUNT(*) FROM fts WHERE fts MATCH ?", (ex,)).fetchone()[0]
+    linhas = []
+    for k, (rot, ex) in enumerate(partes[:8]):
+        so = cont(ex)
+        sem = cont(" AND ".join(e for i, (_, e) in enumerate(partes) if i != k))
+        linhas.append(f"  {rot}: sozinho {so} · sem ele, o resto tem {sem}")
+    return ("\nO que zerou a busca (contagem por grupo/termo no índice inteiro):\n" + "\n".join(linhas)
+            + "\n  → o grupo com 'sozinho 0' não existe no índice (vocabulário: tente outros sinônimos); se todos existem, é a combinação"
+              " que não ocorre — afrouxe o grupo cuja retirada mais devolve.")
+
+
+def outros_acordaos_do_processo(con: sqlite3.Connection, processo: str, acordao: str) -> str:
+    rows = con.execute("SELECT acordao, recurso FROM acordaos WHERE processo=? AND acordao<>? ORDER BY acordao", (processo, acordao)).fetchall()
+    rep_ = con.execute("SELECT COUNT(*) FROM republicacoes WHERE acordao=?", (acordao,)).fetchone()[0]
+    if not rows:
+        return ""
+    lista = "; ".join(f"{r['acordao']} ({r['recurso'] or 'acórdão'})" for r in rows[:5])
+    return (f"⚠ este PROCESSO tem outro(s) acórdão(s) no índice: {lista}{' …' if len(rows) > 5 else ''} — embargos ou recurso "
+            "posterior podem ter alterado ou esclarecido o julgado; a citação vale para o acórdão que você abriu")
 
 
 def cobertura(con: sqlite3.Connection) -> str:
@@ -705,6 +867,13 @@ def ler_recibo(acordao: str) -> dict | None:
     except Exception:
         sha_ok, cab, rec = False, "", None
     if rec is not None and sha_ok and rec.get("acordao") == num and cab in ("", num):
+        if "texto" not in rec:  # recibo antigo (v<0.6): migra em silêncio, sem rede
+            with contextlib.suppress(Exception):
+                rec.update(_campos_de_custodia(rec))
+                tmp = f"{caminho}.{os.getpid()}.tmp"
+                with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
+                    json.dump(rec, f, ensure_ascii=False)
+                os.replace(tmp, caminho)
         if cab == "":
             rec["aviso"] = "o cabeçalho deste recibo não foi reconhecido pelo parser atual; conteúdo íntegro (sha256 confere)"
         return rec
@@ -715,6 +884,15 @@ def ler_recibo(acordao: str) -> dict | None:
     return None
 
 
+def _campos_de_custodia(rec: dict) -> dict:
+    """Campos no formato dos recibos dos MCPs do TJRO e do STJ — `id_documento`, `nr_processo`, `texto` — para que um
+    verificador de fichas (ex.: lint de citações de peça) confira o que foi citado contra o que o portal entregou."""
+    d = parse_teor(rec["html"])
+    return {"id_documento": rec["acordao"], "nr_processo": rec["processo"], "tribunal": "TJSE", "tipo": "ACÓRDÃO",
+            "data_julgamento": br(d.get("data_julgamento")), "orgao": d.get("orgao_fecho") or "", "relator": d.get("relator") or "",
+            "texto": d["texto"][d["inicio_conteudo"]:]}
+
+
 def gravar_recibo(acordao: str, processo: str, html_bruto: str) -> dict:
     os.makedirs(DIR_RECIBOS, mode=0o700, exist_ok=True)
     with contextlib.suppress(OSError):
@@ -722,6 +900,7 @@ def gravar_recibo(acordao: str, processo: str, html_bruto: str) -> dict:
     rec = {"acordao": acordao, "processo": processo, "obtido_em": _dt.datetime.now().isoformat(timespec="seconds"),
            "url": f"{URL_TEOR}?tmp.numprocesso={processo}&tmp.numacordao={acordao}",
            "sha256": hashlib.sha256(html_bruto.encode("utf-8")).hexdigest(), "html": html_bruto}
+    rec.update(_campos_de_custodia(rec))
     caminho = _arq_recibo(acordao)
     with open(os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False)
@@ -1028,7 +1207,8 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
                     "Isto NÃO é 'não localizado'.")
         where.append("(a.acordao=? OR a.processo=?)"); args += [n, n]
     try:
-        q = montar_fts(consulta, grupos, exato)
+        partes = partes_fts(consulta, grupos, exato)
+        q = " AND ".join(e for _, e in partes)
         di, df = _data_iso(data_inicio, "data_inicio"), _data_iso(data_fim, "data_fim")
         if di and df and di > df:
             raise ValueError(f"`data_inicio` ({br(di)}) é posterior a `data_fim` ({br(df)}) — filtro impossível, não ausência de julgado")
@@ -1080,12 +1260,15 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
             n0 = con.execute("SELECT COUNT(*) FROM fts WHERE fts MATCH ?", (q,)).fetchone()[0]
             sem_filtro = (f" SEM os filtros ({', '.join(filtros)}) a mesma expressão tem {n0} resultado(s) — foi o filtro que zerou, "
                           "não a falta de julgado." if n0 else "")
-        return cab + f"Nada no índice local para {q or numero!r}{filtro_data}.{sem_filtro}" + rodape
+        return cab + f"Nada no índice local para {q or numero!r}{filtro_data}.{sem_filtro}" + (diagnostico_zero(con, partes) if q else "") + rodape
     termos = [norm(t) for g in (grupos or []) for t in g]
     termos += [norm(a or b) for a, b in re.findall(r'"([^"]+)"|(\S+)', consulta or "")]
     out = [cab + f"{total} resultado(s) — página {max(1, pagina)} ({por_pagina}/pág.) — ordem: {ordenacao}{filtro_data}\n"
            f"expressão{'' if exato else ' (com variação singular/plural; `exato=true` desliga)'}: "
            f"{q if len(q) < 700 else q[:700] + '…'}\n"]
+    if pagina == 1 and total >= 5:
+        excl = set(re.findall(r"[a-z]{5,}", q))  # a própria consulta e suas variantes não são "pista"
+        out.append(panorama(con, sql, args, por_bm25, total, excl))
     for r in rows:
         em = r["ementa"]
         en = norm(em)
@@ -1096,6 +1279,10 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
         rep_ = [x[0] for x in con.execute("SELECT edicao FROM republicacoes WHERE acordao=?", (r["acordao"],))]
         if rep_:
             rec += f"\n  ⚠ REPUBLICADO na(s) edição(ões) {rep_} — pode haver retificação de ementa: confira no inteiro teor"
+        cita = ancoras(em)
+        outros = outros_acordaos_do_processo(con, r["processo"], r["acordao"])
+        rec += ("\n  Cita: " + " · ".join(cita)) if cita else ""
+        rec += ("\n  " + outros) if outros else ""
         out.append(f"■ Acórdão {r['acordao']} · processo {r['processo']} · {r['recurso'] or r['classe']}\n"
                    f"  {r['orgao']} (seção do Boletim; o órgão citável é o do FECHO) · {r['relator_rotulo'] or 'Relator'}: {r['relator']}\n"
                    f"  Boletim ed. {r['edicao']}, publicado em {br(r['ed_data'])} (data do julgamento só no inteiro teor){rec}\n"
@@ -1164,6 +1351,10 @@ async def obter(numero_acordao: str, numero_processo: str | None = None, com_par
         return f"Pedido recusado: {ex}"
     orgao, avisos = _orgao_e_avisos(d, rec["acordao"])
     max_caracteres = max(2000, int(max_caracteres or 0))
+    with contextlib.suppress(Exception):
+        outros = outros_acordaos_do_processo(_db(), rec["processo"], rec["acordao"])
+        if outros:
+            avisos.append(outros.removeprefix("⚠ "))
     if rec.get("aviso"):
         avisos.append(rec["aviso"])
     corpo = d["texto"] if com_partes else d["texto"][d["inicio_conteudo"]:]

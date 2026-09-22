@@ -42,3 +42,17 @@
   vencido", nunca "é".
   Aceitos, não corrigidos: doutrina/súmula transcrita sem aspas nem atribuição sai sem alerta; pausa que não consegue ser
   gravada em disco protege só o processo atual (B15); falso alarme em voto próprio de <1.200 caracteres entre duas citações.
+
+- **v0.6.0 (21/09/2026)** — o que vale portar do servidor do TJRO, lido de verdade (não só pelo nome das funções):
+  **panorama** de TODAS as ementas que casam (não só da página; o índice é local): resultado declarado
+  (desprovido / provido / parcialmente provido / não conhecido / sem resultado identificável — só quando um lado é
+  inequívoco), por órgão, por classe, **âncoras** (súmula, tema, IRDR, IAC citados; o número de súmula leva a origem
+  quando o texto a diz, porque "Súmula 7" do STJ não é a do TJSE) e **vocabulário** que distingue as ementas do resto do
+  índice (fts5vocab, lift), como pista para novos grupos de sinônimos. Medido em 8.974 ementas: 87 % têm resultado
+  inequívoco; "não conhecido" foi apertado (sujeito = o recurso) porque "não conhecimento" de um argumento isolado
+  o disparava. **Busca que zera** diz qual grupo/termo zera e o que devolveria sem cada um. **Outros acórdãos do mesmo
+  processo** (embargos) são avisados na busca e no inteiro teor. **Recibo de custódia**: o recibo agora traz `id_documento`,
+  `nr_processo`, `tribunal` e `texto` — o formato que verificadores de ficha esperam — e recibos antigos migram sem rede;
+  `TJSE_DIR_RECIBOS` escolhe a pasta.
+  Deliberadamente NÃO portado: cache de 5 min (a busca é local), disjuntor adaptativo com escada (o do TJSE não foi
+  bloqueado e limite sem medição é limite inventado), filtros de assunto/tipo/grau (o Boletim não os tem).
