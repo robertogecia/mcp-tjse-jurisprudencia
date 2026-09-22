@@ -356,6 +356,26 @@ def main(online: bool = False) -> int:
         for _ in range(s.SUCESSOS_PARA_RELAXAR):
             s._registrar_sucesso()
         t("RTD7 consultas limpas AFROUXAM o ritmo", s._ler_estado()["nivel"] == n1 - 1)
+        s._reset_avisos_para_teste()
+        t("RTE1 credito sai UMA vez por processo",
+          s.CREDITO in s.com_avisos("x") and s.CREDITO not in s.com_avisos("y"))
+        t("RTE2 sem versao nova, nenhum aviso de atualizacao", "versão mais nova" not in s.com_avisos("z"))
+        s._reset_avisos_para_teste(); s._versao_nova = "9.9.9"
+        a1 = s.com_avisos("x")
+        t("RTE3 aviso de atualizacao usa a URL FIXA", s.RELEASES_PAGINA in a1 and "9.9.9" in a1)
+        t("RTE4 aviso de atualizacao tambem sai uma vez so", "versão mais nova" not in s.com_avisos("y"))
+        s._reset_avisos_para_teste()
+        t("RTE5 tag menor ou igual NAO vira aviso",
+          not s.versao_mais_nova("0.7.5", "0.7.5") and not s.versao_mais_nova("0.7.5", "v0.7.4"))
+        t("RTE6 tag maior vira aviso", s.versao_mais_nova("0.7.5", "v0.8.0") and s.versao_mais_nova("0.9.9", "1.0.0"))
+        t("RTE7 tag em formato estranho NUNCA vira aviso",
+          not s.versao_mais_nova("0.7.5", "ultima") and not s.versao_mais_nova("0.7.5", "")
+          and not s.versao_mais_nova("0.7.5", "0.8"))
+        os.environ["TJSE_MCP_SEM_AVISO_ATUALIZACAO"] = "1"
+        s._versao_nova = None; s._checar_versao()
+        t("RTE8 variavel de ambiente desliga a checagem", s._versao_nova is None)
+        del os.environ["TJSE_MCP_SEM_AVISO_ATUALIZACAO"]
+        s._reset_avisos_para_teste()
     else:
         o = asyncio.run(s.obter("202638463", "202600737656"))
         print(o[:600]); t("online: inteiro teor", "1ª Câmara Cível" in o)

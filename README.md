@@ -106,8 +106,10 @@ contra o portal fora do disjuntor, e não suba os limites: o servidor do tribuna
 
 ## Instalação
 
+**Guia passo a passo, incluindo a montagem do índice: [INSTALAR.md](INSTALAR.md).** Em resumo:
+
 ```bash
-git clone <este repositório> tjse-jurisprudencia && cd tjse-jurisprudencia
+git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python servidor_tjse.py --selftest        # offline, sobre os fixtures
 ```

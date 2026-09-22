@@ -1,5 +1,13 @@
 # Histórico
 
+- **v0.8.0 (22/09/2026)** — preparado para instalação por terceiros, no molde do pacote do TJRO:
+  **[INSTALAR.md](INSTALAR.md)** passo a passo (requisitos, venv, ligação ao Claude Code e Desktop, montagem do
+  índice, o que NÃO é coberto, como atualizar); **crédito de autoria** uma vez por processo no fim da primeira
+  resposta; e **aviso de versão nova** — uma consulta a `releases/latest` deste repositório, em thread de fundo na
+  subida do servidor, que nunca atrasa resposta alguma e cai em silêncio sem rede, com erro, com repositório privado
+  (404) ou passados 2 s. O endereço mostrado é FIXO, nunca vem do corpo da resposta da API; nada da pesquisa ou do
+  caso sai daqui. Desliga com `TJSE_MCP_SEM_AVISO_ATUALIZACAO=1`. 216 verificações.
+
 - **v0.7.5 (22/09/2026)** — índice completo pela primeira vez: **38.283 acórdãos** em 11 edições (30/10/2025 a
   31/08/2026), sem aviso de lacuna. A ed. 159 ficava eternamente incompleta porque é de 28/11/2025 e a janela padrão
   de sincronização é de 3 meses — nenhuma chamada padrão a alcançaria. Correções: (a) `VERSAO` ficara em "0.7.3" no

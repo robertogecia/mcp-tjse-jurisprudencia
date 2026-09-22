@@ -62,6 +62,7 @@ import os
 import re
 import sqlite3
 import sys
+import threading
 import time
 import unicodedata
 from typing import Any
@@ -83,7 +84,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.7.5"
+VERSAO = "0.8.0"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -1866,10 +1867,89 @@ def _diagnostico() -> str:
 # --------------------------------------------------------------------------- #
 # Registro MCP                                                                 #
 # --------------------------------------------------------------------------- #
+# ------------------------------------------------------------ crédito e aviso de versão ---
+# Uma consulta ao GitHub (releases/latest) por processo, em THREAD DE FUNDO desde a subida do
+# servidor: nenhuma resposta é atrasada, nem por 1 ms — as tools só leem o resultado se ele já
+# chegou. Se houver versão MAIS NOVA, a primeira resposta ganha uma linha com o endereço FIXO da
+# página de releases; nunca uma URL vinda do corpo da resposta da API. Sem rede, com erro, com
+# repositório privado (404) ou em mais de 2 s: silêncio, e a pesquisa segue igual.
+# Só o GitHub vê o IP de quem consulta; nada da pesquisa nem do caso sai daqui, e esta consulta
+# NÃO passa pelo disjuntor do TJSE, que é do portal do tribunal e não deste projeto.
+# Desligar: variável de ambiente TJSE_MCP_SEM_AVISO_ATUALIZACAO=1.
+REPO_GITHUB = "robertogecia/mcp-tjse-jurisprudencia"
+RELEASES_API = f"https://api.github.com/repos/{REPO_GITHUB}/releases/latest"
+RELEASES_PAGINA = f"https://github.com/{REPO_GITHUB}/releases/latest"
+CREDITO = ("_Esta extensão foi desenvolvida por @robertogrecia (Roberto Grécia Bessa, "
+           "OAB/RO 7865-A). Obrigado por usar!_")
+_RE_TAG = re.compile(r"^v?(\d{1,4})\.(\d{1,4})\.(\d{1,4})$")
+
+_credito_dado = False
+_aviso_dado = False
+_versao_nova: str | None = None
+
+
+def versao_mais_nova(atual: str, outra: str) -> bool:
+    """True só se `outra` for estritamente maior que `atual`. Qualquer formato estranho é False —
+    aviso de atualização errado é pior que aviso nenhum."""
+    a, b = _RE_TAG.match(str(atual or "").strip()), _RE_TAG.match(str(outra or "").strip())
+    if not a or not b:
+        return False
+    return tuple(int(x) for x in b.groups()) > tuple(int(x) for x in a.groups())
+
+
+def _checar_versao(timeout: float = 2.0) -> None:
+    """Roda em thread de fundo. NUNCA levanta: qualquer falha é silêncio."""
+    global _versao_nova
+    try:
+        if os.environ.get("TJSE_MCP_SEM_AVISO_ATUALIZACAO") == "1" or httpx is None:
+            return
+        r = httpx.get(RELEASES_API, timeout=timeout, headers={
+            "Accept": "application/vnd.github+json", "User-Agent": "mcp-tjse-jurisprudencia"})
+        if r.status_code != 200:
+            return  # inclusive 404 de repositório privado ou sem release: silêncio
+        tag = str((r.json() or {}).get("tag_name") or "").strip()
+        if versao_mais_nova(VERSAO, tag):
+            _versao_nova = tag.lstrip("v")
+    except Exception:
+        return
+
+
+def iniciar_checagem_versao() -> None:
+    if os.environ.get("TJSE_MCP_SEM_AVISO_ATUALIZACAO") == "1":
+        return
+    t = threading.Thread(target=_checar_versao, daemon=True, name="tjse-checar-versao")
+    t.start()
+
+
+def aviso_atualizacao(nova: str) -> str:
+    return (f"_Há uma versão mais nova desta extensão (v{nova}; a instalada é a v{VERSAO}): "
+            f"{RELEASES_PAGINA}_")
+
+
+def com_avisos(texto: str) -> str:
+    """Crédito (uma vez por processo) e, se houver, aviso de versão (uma vez). Nunca espera rede."""
+    global _credito_dado, _aviso_dado
+    partes = [texto]
+    if not _credito_dado:
+        _credito_dado = True
+        partes.append(CREDITO)
+    if _versao_nova and not _aviso_dado:
+        _aviso_dado = True
+        partes.append(aviso_atualizacao(_versao_nova))
+    return "\n\n".join(partes)
+
+
+def _reset_avisos_para_teste() -> None:
+    global _credito_dado, _aviso_dado, _versao_nova
+    _credito_dado = _aviso_dado = False
+    _versao_nova = None
+
+
 def _servidor():
     from mcp.server.fastmcp import FastMCP
 
     mcp = FastMCP("tjse_jurisprudencia")
+    iniciar_checagem_versao()
 
     @mcp.tool()
     async def sincronizar_boletim_tjse(meses: int = 3, max_requisicoes: int = MAX_REQ_POR_SINCRONIZACAO) -> str:
@@ -1877,7 +1957,7 @@ def _servidor():
         recente para a mais antiga. ÚNICA ferramenta de busca que gasta rede: 1 requisição pela lista de edições,
         1 por menu de edição e 1 por seção (5 por edição; seção de câmara cível passa de 2 MB). Teto de 14
         requisições por chamada, 6 s entre elas — chame de novo até dizer 'período completo'. Nada é rebaixado."""
-        return await sincronizar(meses, max_requisicoes)
+        return com_avisos(await sincronizar(meses, max_requisicoes))
 
     @mcp.tool()
     def buscar_jurisprudencia_tjse(consulta: str | None = None, grupos: list[list[str]] | None = None,
@@ -1923,8 +2003,8 @@ def _servidor():
             Cobre apenas as edições sincronizadas (a saída diz quais) e NÃO cobre Turmas Recursais, monocráticas nem
             o período anterior ao Boletim indexado. Zero resultado aqui nunca é 'não localizado no TJSE' — é
             'não localizado nesta janela'; o complemento é o JusRatio."""
-        return buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-                      ordenacao, exato, em, cita)
+        return com_avisos(buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio,
+                                 data_fim, ordenacao, exato, em, cita))
 
     @mcp.tool()
     async def obter_inteiro_teor_tjse(numero_acordao: str, numero_processo: str | None = None,
@@ -1934,7 +2014,7 @@ def _servidor():
         ('ACORDAM… Tribunal de Justiça do Estado de Sergipe, nesta …'), não do cadastro; a saída traz `orgao_fonte`.
         `numero_processo` só é necessário se o acórdão não estiver no índice local — ou cole em `numero_acordao` a URL
         do inteiro teor (serve para acórdão achado em qualquer outra fonte). Saída cortada = 'lido EM PARTE'."""
-        return await obter(numero_acordao, numero_processo, com_partes, max_caracteres)
+        return com_avisos(await obter(numero_acordao, numero_processo, com_partes, max_caracteres))
 
     @mcp.tool()
     async def verificar_citacao_tjse(numero_acordao: str, trecho: str, numero_processo: str | None = None) -> str:
@@ -1944,7 +2024,7 @@ def _servidor():
         copiado no voto), VOTO DIVERGENTE (pode ser o voto vencido), ALEGAÇÃO DA PARTE (relatório narrando o que a parte
         sustenta), ENTRE ASPAS (o tribunal citando alguém), NEGAÇÃO (recorte que inverte o julgado): cada um muda A QUEM
         a frase pode ser atribuída. Falha de rede = citação NÃO CONFERIDA, nunca ❌."""
-        return await verificar(numero_acordao, trecho, numero_processo)
+        return com_avisos(await verificar(numero_acordao, trecho, numero_processo))
 
     @mcp.tool()
     def mapa_de_citacoes_tjse(referencia: str | None = None, limite: int = 15) -> str:
@@ -1952,12 +2032,12 @@ def _servidor():
         Sem `referencia`: os precedentes qualificados mais citados e os acórdãos do próprio TJSE que as câmaras mais
         reusam — inclusive ANTERIORES ao período sincronizado, que a busca não alcança. Com `referencia` ("Tema 1061",
         "Súmula 479/STJ", "IRDR 15" ou nº de processo do TJSE): quais acórdãos do índice citam aquilo."""
-        return mapa_citacoes(referencia, limite)
+        return com_avisos(mapa_citacoes(referencia, limite))
 
     @mcp.tool()
     def diagnostico_tjse() -> str:
         """Estado do disjuntor, consumo de requisições, cobertura do índice local e incidentes. Sempre 0 requisições."""
-        return diagnostico()
+        return com_avisos(diagnostico())
 
     return mcp
 
