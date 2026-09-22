@@ -77,17 +77,35 @@ centenas de MB que mudam a cada sincronização, e nuvem no meio do caminho já 
 
 Reinicie o Claude.
 
-### 5. Monte o índice (a parte que leva tempo)
+### 5. Monte o índice (a parte que leva tempo — ou pule com o pacote pronto)
 
-O projeto vem **sem índice**: ele é montado na sua máquina, a partir do Boletim oficial. Peça ao
-Claude:
+O projeto vem **sem índice**. Duas formas de montá-lo:
+
+**A. Pacote pronto (rápido, sem tocar o portal).** Baixe o HTML bruto de uma release e importe
+localmente:
+
+```bash
+curl -LO https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest/download/base-secoes-tjse-2026-09-22.tar.gz
+curl -LO https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest/download/SHA256SUMS.txt
+shasum -a 256 -c SHA256SUMS.txt   # confira antes de extrair
+tar -xzf base-secoes-tjse-2026-09-22.tar.gz -C base/
+```
+
+Depois peça ao Claude: "importe o pacote do TJSE" (ferramenta `importar_pacote_tjse`). Zero rede,
+zero requisição ao portal — é cópia de publicação oficial e aberta do tribunal, sem nome de parte.
+O nome do arquivo muda a cada release; confira o nome exato na
+[página de releases](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest).
+
+**B. Sincronizar do zero (mais lento, direto do portal).** Peça ao Claude:
 
 > "Sincronize o Boletim do TJSE dos últimos 12 meses."
 
 Cada chamada baixa no máximo 14 requisições, com 6 segundos entre elas — o portal é pequeno e o
 projeto anda devagar de propósito. **Repita o pedido até a resposta dizer que o período está
-completo**; são cerca de 10 chamadas para um ano. O resultado fica em `base/`, e nada disso
-precisa ser refeito depois.
+completo**; são cerca de 10 chamadas para um ano. Use este caminho para manter atualizado depois
+de qualquer um dos dois — o pacote cobre só até a data do release.
+
+O resultado fica em `base/`, e nada disso precisa ser refeito depois.
 
 Confira com:
 

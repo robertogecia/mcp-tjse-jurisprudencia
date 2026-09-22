@@ -106,7 +106,7 @@ contra o portal fora do disjuntor, e não suba os limites: o servidor do tribuna
 
 ## Instalação
 
-**Guia passo a passo, incluindo a montagem do índice: [INSTALAR.md](INSTALAR.md).** Em resumo:
+**Guia passo a passo, incluindo a montagem do índice: [INSTALAR.md](INSTALAR.md).** Tem atalho para quem não quer sincronizar do zero: um pacote com o HTML bruto do Boletim (cópia de publicação oficial e aberta, sem nome de parte) anexado à [release](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest), que a ferramenta `importar_pacote_tjse` reconstrói localmente sem tocar o portal. Em resumo:
 
 ```bash
 git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia
