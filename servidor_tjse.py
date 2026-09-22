@@ -84,7 +84,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.8.0"
+VERSAO = "0.8.1"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -719,6 +719,64 @@ def _apagar_secao(con: sqlite3.Connection, edicao: int, nome: str) -> None:
     for t, col in (("fts", "acordao"), ("campos", "acordao"), ("fts_campos", "acordao"), ("citacoes", "origem")):
         con.execute(f"DELETE FROM {t} WHERE {col} IN ({alvo})", (edicao, nome))
     con.execute("DELETE FROM acordaos WHERE edicao=? AND orgao=?", (edicao, nome))
+
+
+# Nomes de seção são fixos por código no Boletim (medido nas 11 edições sincronizadas: nunca mudou).
+# Serve para reconstruir o índice a partir só do HTML bruto — sem passar pela sincronização normal,
+# que precisaria da tabela `edicoes`/`secoes` já povoada. É o caminho de quem RECEBEU o HTML bruto
+# de outra pessoa (pacote de `base/secoes/`) em vez de baixar do portal.
+NOME_POR_CODIGO = {5: "Seção Especializada Cível", 6: "1ª Câmara Cível", 7: "2ª Câmara Cível",
+                   8: "Câmara Criminal", 10: "Tribunal Pleno"}
+
+_RE_ARQ_SECAO = re.compile(r"^(\d+)-(\d+)(?:\.p\d+)?\.html\.gz$")
+_RE_ROTULO_BOLETIM = re.compile(r"(?i)boletim\s*n\.?\s*(\d+)\s+de\s+([^<\n]{3,40}\d{4})")
+
+
+def importar_secoes_do_bruto(con: sqlite3.Connection) -> str:
+    """Reconstrói `edicoes`, `secoes` e o índice inteiro só a partir de `base/secoes/*.html.gz` — zero rede,
+    mesmo com as tabelas do banco vazias. Serve para quem recebeu o HTML bruto pronto (pacote de terceiro)
+    em vez de rodar `sincronizar_boletim_tjse`. Código de seção sem nome conhecido (`NOME_POR_CODIGO`) é
+    ignorado e listado à parte — melhor buraco declarado que nome inventado."""
+    if not os.path.isdir(DIR_SECOES):
+        return f"Nada em `{DIR_SECOES}` para importar."
+    pares: dict[tuple[int, int], list[str]] = {}
+    for nome_arq in os.listdir(DIR_SECOES):
+        m = _RE_ARQ_SECAO.match(nome_arq)
+        if m:
+            pares.setdefault((int(m.group(1)), int(m.group(2))), [])
+    ignorados = sorted({cod for _, cod in pares if cod not in NOME_POR_CODIGO})
+    linhas: list[str] = []
+    novos_acordaos = 0
+    for edicao, codigo in sorted(pares):
+        if codigo not in NOME_POR_CODIGO:
+            continue
+        pags, completa = paginas_em_disco(edicao, codigo)
+        if not pags:
+            continue
+        if not completa:
+            linhas.append(f"  edição {edicao} · seção {codigo}: só {len(pags)} página(s) em disco, "
+                          "SEM a marca de fim — importada mesmo assim, mas pode faltar conteúdo.")
+        rot = _RE_ROTULO_BOLETIM.search(pags[0])
+        data_ed = data_por_extenso(_html.unescape(rot.group(2))) if rot else None
+        if rot:
+            con.execute("INSERT OR REPLACE INTO edicoes VALUES(?,?,?)", (edicao, rot.group(1), data_ed))
+        elif not con.execute("SELECT 1 FROM edicoes WHERE edicao=?", (edicao,)).fetchone():
+            con.execute("INSERT OR REPLACE INTO edicoes VALUES(?,?,?)", (edicao, str(edicao), None))
+            linhas.append(f"  ⚠ edição {edicao}: rótulo/data não reconhecidos na página — gravada só com o número.")
+        nome = NOME_POR_CODIGO[codigo]
+        itens = parse_secao("\n".join(pags))
+        novos = indexar_secao(con, edicao, codigo, nome, itens)
+        novos_acordaos += novos
+        linhas.append(f"  edição {edicao} · {nome}: {len(itens)} acórdãos ({novos} novos)")
+    con.execute("INSERT OR REPLACE INTO meta VALUES('parser_versao', ?)", (str(PARSER_VERSAO),))
+    con.commit()
+    if not linhas:
+        return f"Nenhuma seção reconhecível em `{DIR_SECOES}` (esperado: `<edição>-<código>.html.gz`)."
+    aviso_ignorados = (f"\n⚠ código(s) de seção sem nome conhecido, ignorado(s): {ignorados} — avise o "
+                       "mantenedor do projeto, o Boletim pode ter uma seção nova.") if ignorados else ""
+    return (f"Importação do HTML bruto (zero rede) — {novos_acordaos} acórdão(s) novo(s):\n" + "\n".join(linhas)
+            + aviso_ignorados + f"\nÍndice: {cobertura(con)}")
+
 
 
 def _reindexar_se_parser_mudou(con: sqlite3.Connection) -> None:
@@ -2033,6 +2091,14 @@ def _servidor():
         reusam — inclusive ANTERIORES ao período sincronizado, que a busca não alcança. Com `referencia` ("Tema 1061",
         "Súmula 479/STJ", "IRDR 15" ou nº de processo do TJSE): quais acórdãos do índice citam aquilo."""
         return com_avisos(mapa_citacoes(referencia, limite))
+
+    @mcp.tool()
+    def importar_pacote_tjse() -> str:
+        """Reconstrói o índice a partir do HTML bruto já em `base/secoes/` — ZERO REDE, mesmo com o banco vazio.
+        Use depois de colocar ali um pacote de HTML bruto obtido de outra pessoa (ex.: asset de release do
+        próprio projeto), em vez de rodar `sincronizar_boletim_tjse` do zero. Não baixa nada; só reconstrói
+        o que já está em disco. Seguro rodar de novo: não duplica acórdão já indexado."""
+        return com_avisos(importar_secoes_do_bruto(_db()))
 
     @mcp.tool()
     def diagnostico_tjse() -> str:

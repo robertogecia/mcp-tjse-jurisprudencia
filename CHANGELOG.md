@@ -1,5 +1,14 @@
 # Histórico
 
+- **v0.8.1 (22/09/2026)** — nova ferramenta `importar_pacote_tjse`: reconstrói o índice inteiro a partir só do
+  HTML bruto de `base/secoes/` — zero rede, mesmo com o banco vazio — para quem recebe o pacote de outra pessoa em
+  vez de sincronizar do zero (economiza ~90 requisições ao portal para um ano de Boletim). Rótulo e data da edição
+  são lidos da própria página ("Boletim n. X de DIA de MÊS de ANO"); código de seção sem nome conhecido é ignorado e
+  avisado, nunca inventado; seção sem a marca de fim ainda é importada, com aviso. Testado ponta a ponta contra o
+  pacote real (`base-secoes-tjse-2026-09-22.tar.gz`, 77 MB, asset do release): reconstrói os mesmos 38.283 acórdãos
+  em 11 edições, sem lacuna. Conferido antes de publicar: as ementas não trazem nome de parte (decisão judicial não é
+  protegida por direito autoral, Lei 9.610/98 art. 8º, IV). 222 verificações.
+
 - **v0.8.0 (22/09/2026)** — preparado para instalação por terceiros, no molde do pacote do TJRO:
   **[INSTALAR.md](INSTALAR.md)** passo a passo (requisitos, venv, ligação ao Claude Code e Desktop, montagem do
   índice, o que NÃO é coberto, como atualizar); **crédito de autoria** uma vez por processo no fim da primeira

@@ -376,6 +376,26 @@ def main(online: bool = False) -> int:
         t("RTE8 variavel de ambiente desliga a checagem", s._versao_nova is None)
         del os.environ["TJSE_MCP_SEM_AVISO_ATUALIZACAO"]
         s._reset_avisos_para_teste()
+
+        # importação do HTML bruto (pacote de terceiro) — sem passar pela sincronização normal.
+        # Fixture do Pleno (168-10) tem ids próprios (202640792...), sem colisão com os das outras seções
+        # já gravadas por testes anteriores neste mesmo diretório temporário.
+        pleno = fx("09-principal-168-pleno.html")
+        s.guardar_bruto(777, 10, pleno, 1)                                    # completa (fixture já é última página)
+        s.guardar_bruto(778, 99, pleno, 1)                                    # código de seção desconhecido
+        marca_proxima = pleno + "submitWIGrid('grid.lista_conteudoDiario', 5)\" class='nav_go'"
+        s.guardar_bruto(779, 10, marca_proxima, 1)                            # marca "próxima página" mas ela não existe = incompleta
+        rimp = s.importar_secoes_do_bruto(s._db())
+        t("RTF1 importa edicao completa com rotulo lido da propria pagina", "edição 777 · Tribunal Pleno" in rimp)
+        t("RTF2 codigo de secao desconhecido e ignorado e avisado", "[99]" in rimp and "código(s) de seção sem nome conhecido" in rimp)
+        t("RTF3 secao sem marca de fim ainda e importada, com aviso", "SEM a marca de fim" in rimp)
+        con_f = s._db()
+        t("RTF4 acordaos da secao completa entraram no indice",
+          con_f.execute("select count(*) from acordaos where edicao=777").fetchone()[0] > 0)
+        t("RTF6 data da edicao veio da propria pagina, nao ficou vazia",
+          con_f.execute("select data from edicoes where edicao=777").fetchone()[0] is not None)
+        rimp2 = s.importar_secoes_do_bruto(con_f)
+        t("RTF5 rodar de novo nao duplica", "0 acórdão(s) novo(s)" in rimp2)
     else:
         o = asyncio.run(s.obter("202638463", "202600737656"))
         print(o[:600]); t("online: inteiro teor", "1ª Câmara Cível" in o)
