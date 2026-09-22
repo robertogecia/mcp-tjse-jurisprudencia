@@ -1,10 +1,51 @@
 # tjse-jurisprudencia — servidor MCP de jurisprudência do TJSE
 
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Pesquisa de acórdãos do **Tribunal de Justiça de Sergipe** para quem vai **citar em peça**: índice local pesquisável,
 inteiro teor com recibo, conferência literal de citação, órgão julgador e data lidos do fecho do acórdão.
 Funciona com qualquer cliente MCP (Claude Desktop, Claude Code e outros).
 
 Não é produto oficial do TJSE. Toda saída é rascunho: quem assina a peça confere.
+
+## Instalar (5 minutos)
+
+> **Guia completo, com a montagem do índice: [INSTALAR.md](INSTALAR.md).** Aqui vai o resumo.
+
+```bash
+git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python servidor_tjse.py --selftest        # offline, sobre fixtures reais anonimizados
+```
+
+Depois, ligue ao Claude Code:
+
+```bash
+claude mcp add tjse_jurisprudencia -- /caminho/tjse-jurisprudencia/.venv/bin/python /caminho/tjse-jurisprudencia/servidor_tjse.py
+```
+
+ou ao Claude Desktop, em `claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "tjse_jurisprudencia": {
+    "command": "/caminho/tjse-jurisprudencia/.venv/bin/python",
+    "args": ["/caminho/tjse-jurisprudencia/servidor_tjse.py"] } } }
+```
+
+Por fim, monte o índice — **ou baixe pronto**: um pacote com o HTML bruto do Boletim (cópia de publicação oficial e
+aberta, sem nome de parte) está anexado à [release mais recente](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest);
+extraia em `base/secoes/` e peça ao Claude "importe o pacote do TJSE" (`importar_pacote_tjse`, zero rede). Sem o
+pacote, peça "sincronize o Boletim do TJSE dos últimos 12 meses" e repita até a resposta dizer que o período está completo.
+
+**Se não funcionar:**
+
+| Sintoma | O que é |
+|---|---|
+| As ferramentas não aparecem depois de instalado | Confira a versão do `mcp`: precisa ser `<2`. A série 2.x renomeou `FastMCP` e o registro falha **em silêncio** — o servidor sobe, conecta, e não expõe nada. |
+| Índice sumiu ou veio corrompido | `TJSE_DIR_DADOS` (ou a pasta padrão do projeto) estava dentro de pasta sincronizada em nuvem (OneDrive, Dropbox, iCloud). Aponte para fora dela. |
+| `⚠ EDIÇÕES INCOMPLETAS` que nunca some | Pode ser edição fora da janela pedida — o parâmetro de `sincronizar_boletim_tjse` é `meses`, contado para trás a partir de hoje. Peça uma janela maior. |
+| A busca deu zero resultado | **Nunca é "não existe no TJSE"** — é "não existe nas edições sincronizadas". Confira `diagnostico_tjse` antes de concluir qualquer coisa. |
+| Preciso resolver um captcha para pesquisar | Não. O formulário oficial com Cloudflare Turnstile nunca é usado nem contornado — veja abaixo por quê. |
 
 ## Por que ele é assim
 
@@ -104,36 +145,11 @@ O estado fica em disco sob `flock`, compartilhado entre processos. O cliente se 
 (`tjse-jurisprudencia-mcp/<versão>`); `TJSE_USER_AGENT` troca, por conta e risco de quem troca. Não rode scripts soltos
 contra o portal fora do disjuntor, e não suba os limites: o servidor do tribunal é pequeno e é de todos.
 
-## Instalação
+## Configuração avançada
 
-**Guia passo a passo, incluindo a montagem do índice: [INSTALAR.md](INSTALAR.md).** Tem atalho para quem não quer sincronizar do zero: um pacote com o HTML bruto do Boletim (cópia de publicação oficial e aberta, sem nome de parte) anexado à [release](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest), que a ferramenta `importar_pacote_tjse` reconstrói localmente sem tocar o portal. Em resumo:
-
-```bash
-git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python servidor_tjse.py --selftest        # offline, sobre os fixtures
-```
-
-`mcp<2` é proposital: a série 2.x renomeou `FastMCP` e o registro das tools falha em silêncio.
-
-Claude Code:
-
-```bash
-claude mcp add tjse_jurisprudencia -- /caminho/tjse-jurisprudencia/.venv/bin/python /caminho/tjse-jurisprudencia/servidor_tjse.py
-```
-
-Claude Desktop (`claude_desktop_config.json`):
-
-```json
-{ "mcpServers": { "tjse_jurisprudencia": {
-    "command": "/caminho/tjse-jurisprudencia/.venv/bin/python",
-    "args": ["/caminho/tjse-jurisprudencia/servidor_tjse.py"],
-    "env": { "TJSE_DIR_DADOS": "/caminho/para/dados-fora-de-nuvem" } } } }
-```
-
-`TJSE_DIR_DADOS` (opcional) diz onde ficam índice, recibos e disjuntor; o padrão é a pasta do script. Prefira um lugar
-fora de pasta sincronizada em nuvem. Interromper a sincronização no meio não corrompe nada — o que entrou não é rebaixado e seção incompleta não entra pela metade. Primeira vez: peça ao assistente `sincronizar_boletim_tjse(meses=6)` e repita até
-"período completo" (cerca de 6 a 8 requisições por mês de Boletim; ~40 MB de índice e ~5 MB de HTML bruto compactado por edição).
+`TJSE_DIR_DADOS` (opcional) diz onde ficam índice, recibos e disjuntor; o padrão é a pasta do script — prefira um
+lugar fora de pasta sincronizada em nuvem (razão na tabela de sintomas acima). Interromper a sincronização no meio
+não corrompe nada: o que entrou não é rebaixado, e seção incompleta não entra pela metade.
 
 ## Desenvolvimento
 
