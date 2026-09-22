@@ -8,9 +8,13 @@ Funciona com qualquer cliente MCP (Claude Desktop, Claude Code e outros).
 
 Não é produto oficial do TJSE. Toda saída é rascunho: quem assina a peça confere.
 
-## Instalar (5 minutos)
+## Instalar
 
-> **Guia completo, com a montagem do índice: [INSTALAR.md](INSTALAR.md).** Aqui vai o resumo.
+> **Nunca usou o Terminal? Comece pelo [guia de instalação passo a passo](INSTALAR.md)** — explica
+> onde clicar, o que colar e o que cada coisa faz, sem exigir conhecimento técnico. Ele também
+> explica que este projeto **baixa julgados de verdade** para o seu computador (não é uma busca
+> "ao vivo") e **quanto espaço em disco reservar** para isso — em torno de 1 GB para um ano de
+> Boletim Jurídico. O resumo abaixo é para quem já tem familiaridade com linha de comando.
 
 ```bash
 git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia

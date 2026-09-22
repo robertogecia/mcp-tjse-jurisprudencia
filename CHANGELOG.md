@@ -1,5 +1,12 @@
 # Histórico
 
+- **(22/09/2026)** — repositório tornado **PÚBLICO** por decisão do Roberto. `INSTALAR.md` reescrito do zero para
+  quem nunca usou Terminal: explica o que é o Terminal e como abri-lo, como instalar Python e Git com cliques (não
+  só comando), e deixa explícito, logo no início, que o projeto **baixa julgados de verdade** para o computador
+  (não é busca "ao vivo") e **quanto espaço em disco reservar** — medido: ~80 MB por edição/mês do Boletim, ~1 GB
+  para um ano completo, recomendação de 2 GB livres. README também aponta para o guia didático antes do resumo
+  técnico. Nenhuma mudança de código.
+
 - **v0.8.1 (22/09/2026)** — nova ferramenta `importar_pacote_tjse`: reconstrói o índice inteiro a partir só do
   HTML bruto de `base/secoes/` — zero rede, mesmo com o banco vazio — para quem recebe o pacote de outra pessoa em
   vez de sincronizar do zero (economiza ~90 requisições ao portal para um ano de Boletim). Rótulo e data da edição
