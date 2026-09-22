@@ -83,7 +83,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.6.0"
+VERSAO = "0.6.2"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -129,6 +129,13 @@ ORGAOS_FECHO = ["Tribunal Pleno", "Seção Especializada Cível", "1ª Câmara C
                 "Câmara Criminal", "Turma de Uniformização", "1ª Turma Recursal", "2ª Turma Recursal",
                 "Turma Recursal", "Conselho da Magistratura"]
 SECOES_SEM_ACORDAO = {"abreviaturas", "composicao do tribunal"}
+# O fecho escreve o ordinal por extenso tanto quanto em algarismo ("Grupo 5 da Primeira Câmara Cível" x "nesta 1ª
+# Câmara Cível") — achado no 1º uso real de pesquisa, 21/09/2026: sem isso o órgão caía no cadastro e a data de
+# julgamento, que é lida na janela do fecho, saía vazia.
+_ORDINAL_EXTENSO = {"primeira": "1a", "segunda": "2a", "terceira": "3a", "quarta": "4a", "quinta": "5a",
+                    "sexta": "6a", "setima": "7a", "oitava": "8a", "nona": "9a", "decima": "10a",
+                    "primeiro": "1a", "segundo": "2a", "terceiro": "3a"}
+_RE_ORDINAL_EXTENSO = re.compile(r"\b(%s)\s+(?=camara|turma|secao|grupo)" % "|".join(_ORDINAL_EXTENSO))
 MESES = {m: i + 1 for i, m in enumerate(
     ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro",
      "outubro", "novembro", "dezembro"])}
@@ -165,6 +172,11 @@ def limpar_html(frag: str) -> str:
 
 def sem_acento(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
+def norm_orgao(s: str) -> str:
+    """norm() + ordinal por extenso em algarismo, para casar "Primeira Câmara Cível" com "1ª Câmara Cível"."""
+    return _RE_ORDINAL_EXTENSO.sub(lambda m: _ORDINAL_EXTENSO[m.group(1)] + " ", norm(s))
 
 
 def norm(s: str) -> str:
@@ -449,12 +461,12 @@ def parse_teor(h: str) -> dict[str, Any]:
     # que aparece PRIMEIRO no texto da janela — não o primeiro da lista (red team 21/09/2026, achado 2).
     fechos = []
     for m in re.finditer(r"(?i)\bacordam\b", t):
-        jan = norm(t[m.start(): m.start() + 450])
+        jan = norm_orgao(t[m.start(): m.start() + 450])
         k = jan.find("estado de sergipe")
         if k < 0:
             continue
         jan = jan[: k + 140]
-        achados = sorted((jan.find(norm(o)), -len(o), o) for o in ORGAOS_FECHO if norm(o) in jan)
+        achados = sorted((jan.find(norm_orgao(o)), -len(o), o) for o in ORGAOS_FECHO if norm_orgao(o) in jan)
         if achados:
             fechos.append((achados[0][2], m.start()))
     orgs = {o for o, _ in fechos}
@@ -867,9 +879,13 @@ def ler_recibo(acordao: str) -> dict | None:
     except Exception:
         sha_ok, cab, rec = False, "", None
     if rec is not None and sha_ok and rec.get("acordao") == num and cab in ("", num):
-        if "texto" not in rec:  # recibo antigo (v<0.6): migra em silêncio, sem rede
+        try:  # parser que falha não atualiza nem destrói o recibo (o conteúdo é íntegro: o sha256 já conferiu)
+            atual = _campos_de_custodia(rec)
+        except Exception:
+            atual = {}
+        if atual and any(rec.get(k) != v for k, v in atual.items()):  # parser melhorou: atualiza sem rede
             with contextlib.suppress(Exception):
-                rec.update(_campos_de_custodia(rec))
+                rec.update(atual)
                 tmp = f"{caminho}.{os.getpid()}.tmp"
                 with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
                     json.dump(rec, f, ensure_ascii=False)
@@ -1344,7 +1360,7 @@ def _orgao_e_avisos(d: dict, acordao: str) -> tuple[str, list[str]]:
                       "embargado?). Órgão exibido é o da seção do Boletim, com ressalva — confira lendo.")
         return (cad or "órgão não determinado"), avisos
     if d["orgao_fecho"]:
-        if cad and norm(cad) != norm(d["orgao_fecho"]):
+        if cad and norm_orgao(cad) != norm_orgao(d["orgao_fecho"]):
             avisos.append(f"DIVERGÊNCIA: Boletim publica em '{cad}', o fecho diz '{d['orgao_fecho']}'. Vale o fecho.")
         return d["orgao_fecho"], avisos
     avisos.append("Fecho ('ACORDAM… Tribunal de Justiça do Estado de Sergipe') não localizado: órgão é o da seção do Boletim.")

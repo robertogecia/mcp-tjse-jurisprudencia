@@ -62,3 +62,9 @@
   tribunal, porque um trecho copiado de outro julgado está literalmente no inteiro teor. Recibo antigo migra sozinho,
   sem rede, na primeira leitura. Serviu para fechar, na `peticao-rg`, o caso em que o lint aprovava como palavra do
   TJSE um fecho do TJCE transcrito no voto.
+
+- **v0.6.2 (21/09/2026)** — achado no PRIMEIRO uso real de pesquisa (caso de contratação bancária por idoso): o fecho
+  escreve o órgão por extenso tanto quanto em algarismo ("acordam os integrantes do Grupo 5 da **Primeira** Câmara
+  Cível"), e assim o órgão caía no cadastro e a **data de julgamento saía vazia** — ela é lida na janela do fecho.
+  `norm_orgao()` passa o ordinal por extenso a algarismo. Os recibos já gravados se atualizam sozinhos, sem rede,
+  quando o parser melhora (antes só migravam se faltasse `texto`); parser que falha não atualiza nem destrói o recibo.

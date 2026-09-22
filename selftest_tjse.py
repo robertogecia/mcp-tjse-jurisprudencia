@@ -116,6 +116,16 @@ def main(online: bool = False) -> int:
     r = s.conferir(sint_div, "A cláusula é manifestamente abusiva e deve ser declarada nula")
     t("RTB2 VOTO DIVERGENTE depois de 'peço vênia para divergir'", r["ok"] and any("DIVERGENTE" in a for a in r["alertas"]))
     r = s.conferir(corpo, "veda aos pais ou representantes legais contrair obrigações em nome dos filhos incapazes")
+    # R4 (1º uso real de pesquisa, 21/09/2026): o fecho escreve o órgão por extenso — "acordam os integrantes do
+    # Grupo 5 da Primeira Câmara Cível" — e sem isso o órgão caía no cadastro e a data de julgamento saía vazia.
+    ext = bruto03.replace("ACORDAM os Desembargadores do Tribunal de Justi&ccedil;a do Estado de Sergipe, nesta 1&ordf; C&acirc;mara C&iacute;vel, Grupo V,",
+                          "acordam os integrantes do Grupo 5 da Primeira C&acirc;mara C&iacute;vel do Tribunal de Justi&ccedil;a do Estado de Sergipe,")
+    assert ext != bruto03, "o fixture mudou: a substituição sintética do fecho por extenso não pegou"
+    d_ext = s.parse_teor(ext)
+    t("R4 fecho por extenso ('Primeira Câmara Cível') é reconhecido", d_ext["orgao_fecho"] == "1ª Câmara Cível")
+    t("R4 data do julgamento sai do fecho por extenso", d_ext["data_julgamento"] == "2026-07-17")
+    t("R4 'Segunda Câmara Cível' idem", s.parse_teor(ext.replace("Primeira", "Segunda"))["orgao_fecho"] == "2ª Câmara Cível")
+    t("R4 cadastro por extenso não conta como divergência", s.norm_orgao("Primeira Câmara Cível") == s.norm_orgao("1ª Câmara Cível"))
     t("RTB2 voto do relator, antes da divergência: sem alerta", not any("DIVERG" in a for a in s.conferir(sint_div, "A cláusula é válida e o recurso deve ser desprovido")["alertas"]))
     t("RTB2 ementa da casa: sem alerta de divergência", r["ok"] and not any("DIVERG" in a for a in r["alertas"]))
     tn8 = s.norm(s.parse_teor(fx("08-relatorio-202640467.html"))["texto"]); k8 = tn8.find("(tj-pr")
