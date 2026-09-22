@@ -1,6 +1,6 @@
 """L3 — recibo com campo não-string derruba o lint inteiro (AttributeError), impedindo a geração da peça."""
 import json, os, sys, tempfile
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
 pasta = tempfile.mkdtemp(prefix="L3_")
 F = lambda **k: L.Ficha(dict({"chave": "TJSE 202640467", "tribunal": "TJSE", "id_documento": "202640467",

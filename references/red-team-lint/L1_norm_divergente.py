@@ -1,9 +1,9 @@
 """L1 — o `norm` do servidor e o `norm_literal` do lint divergem em "nº <dígito>".
 Efeito: trecho realmente TRANSCRITO de outro tribunal não dispara o aviso e o lint APROVA."""
 import importlib.util, json, os, sys, tempfile
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
-spec = importlib.util.spec_from_file_location("srv", "/Users/robertogrecia/MCP/tjse-jurisprudencia/servidor_tjse.py")
+spec = importlib.util.spec_from_file_location("srv", os.environ.get("TJSE_RAIZ", os.path.expanduser("~/MCP/tjse-jurisprudencia")) + "/servidor_tjse.py")
 srv = importlib.util.module_from_spec(spec); spec.loader.exec_module(srv)
 
 print("--- divergência das duas normalizações (mesma entrada) ---")

@@ -1,9 +1,9 @@
 """L2 — trecho que COMEÇA dentro da faixa transcrita e TERMINA fora (ou vice-versa) não dispara
 nenhum aviso: `ns in marcado` exige a faixa inteira. O trecho está no `texto` -> aprovado em silêncio."""
 import importlib.util, json, os, re, sys, tempfile
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
-spec = importlib.util.spec_from_file_location("srv", "/Users/robertogrecia/MCP/tjse-jurisprudencia/servidor_tjse.py")
+spec = importlib.util.spec_from_file_location("srv", os.environ.get("TJSE_RAIZ", os.path.expanduser("~/MCP/tjse-jurisprudencia")) + "/servidor_tjse.py")
 srv = importlib.util.module_from_spec(spec); spec.loader.exec_module(srv)
 
 corpo = ("ACORDAM os Desembargadores do Tribunal de Justica do Estado de Sergipe. Precedentes: "

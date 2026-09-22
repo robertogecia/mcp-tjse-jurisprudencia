@@ -1,7 +1,7 @@
 """L6 — TJRO e STJ depois da mudança de 21/09: mensagens idênticas às do selftest, e campos novos
 do TJSE num recibo do TJRO não mudam nada."""
 import json, os, sys, tempfile
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
 P = lambda t: {"tipo": "paragrafo", "texto": t}
 def run(blocks, **raiz):

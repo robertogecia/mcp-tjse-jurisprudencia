@@ -1,6 +1,6 @@
 """L4 — caminhos em que o lint CALA quando deveria falar."""
 import json, os, sys, tempfile
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
 pasta = tempfile.mkdtemp(prefix="L4_")
 json.dump({"id_documento": "202638463", "nr_processo": "202600737656", "tribunal": "TJSE",

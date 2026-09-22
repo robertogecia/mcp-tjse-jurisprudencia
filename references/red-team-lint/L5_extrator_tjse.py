@@ -1,6 +1,7 @@
+import os
 """L5 — _RE_TJSE / extrair_citacoes / parsear_chave: falsos negativos e colisão de identidade."""
 import sys
-sys.path.insert(0, "/Users/robertogrecia/.claude/skills/peticao-rg/scripts")
+sys.path.insert(0, os.environ.get("PETICAO_RG_SCRIPTS", os.path.expanduser("~/.claude/skills/peticao-rg/scripts")))
 import lint_citacoes as L
 i = lambda t: [c.ident for c in L.extrair_citacoes(t)]
 P = lambda t: {"tipo": "paragrafo", "texto": t}
