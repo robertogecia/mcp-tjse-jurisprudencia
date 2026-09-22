@@ -130,7 +130,7 @@ Claude Desktop (`claude_desktop_config.json`):
 ```
 
 `TJSE_DIR_DADOS` (opcional) diz onde ficam índice, recibos e disjuntor; o padrão é a pasta do script. Prefira um lugar
-fora de pasta sincronizada em nuvem. Primeira vez: peça ao assistente `sincronizar_boletim_tjse(meses=6)` e repita até
+fora de pasta sincronizada em nuvem. Interromper a sincronização no meio não corrompe nada — o que entrou não é rebaixado e seção incompleta não entra pela metade. Primeira vez: peça ao assistente `sincronizar_boletim_tjse(meses=6)` e repita até
 "período completo" (cerca de 6 a 8 requisições por mês de Boletim; ~40 MB de índice e ~5 MB de HTML bruto compactado por edição).
 
 ## Desenvolvimento

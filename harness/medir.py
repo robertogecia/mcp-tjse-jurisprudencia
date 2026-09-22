@@ -11,6 +11,10 @@ Duas formas de busca por consulta:
 Uso:
     ~/MCP/tjse-jurisprudencia/.venv/bin/python harness/medir.py
 """
+# O recall absoluto NÃO é comparável entre corpora de tamanhos diferentes: com 3x mais acórdãos, os mesmos 50
+# primeiros capturam proporcionalmente menos essenciais, sem que nada no código tenha piorado (medido em
+# 21/09/2026: 8.974 -> 29.450 acórdãos derrubou o recall@50 pela metade, com o código IDÊNTICO). Por isso toda
+# medição registra o tamanho do corpus, e comparação só vale contra o MESMO snapshot.
 import os
 import re
 import sys

@@ -129,3 +129,11 @@
   `RELATOR) ORIGINÁRIA` (o "(A" se perdeu e sobrou o parêntese). De **198 acórdãos sem relator para 1**, em 25.176 —
   os 196 restantes são "VAGA DE DESEMBARGADOR", marcador administrativo já anotado como tal. Índice em 25.176
   acórdãos, 8 edições, janeiro a agosto de 2026.
+
+- **Cobertura e uma limitação medida (21/09/2026, fim do dia).** Índice em **29.450 acórdãos, 10 edições
+  (nov/2025 a ago/2026)**, sete delas completas. Ao remedir o harness com esse corpus, o recall@50 caiu à metade do
+  que era com 8.974 acórdãos — **com o código idêntico**, o que já havia sido provado rodando duas versões contra o
+  mesmo snapshot. Não é regressão: é a busca ficando mais difícil conforme o índice cresce, e o número absoluto
+  deixando de ser comparável entre corpora. O medidor passou a registrar o tamanho do corpus em toda medição.
+  **Consequência prática**: quanto maior o índice, mais o ranking importa — é onde estão os próximos ganhos
+  (os sinônimos de `references/vocabulario/` e o grafo, usados ao montar `grupos`, e não como expansão cega).
