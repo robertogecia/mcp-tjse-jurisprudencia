@@ -341,6 +341,10 @@ def main(online: bool = False) -> int:
         t("RT3 promessa honesta sobre partes", "continuam nomeando" in o2)
         t("RT20 recibos/ 0700", oct(os.stat(s.DIR_RECIBOS).st_mode)[-3:] == "700")
         t("recibo 0600", oct(os.stat(s._arq_recibo("202638463")).st_mode)[-3:] == "600")
+        import httpx as _hx
+        t("RTD1 timeout NAO arma o disjuntor", s._falha_transitoria(_hx.ReadTimeout("x")))
+        t("RTD2 queda de conexao NAO arma o disjuntor", s._falha_transitoria(_hx.ConnectError("x")))
+        t("RTD3 erro que nao e de rede ARMA o disjuntor", not s._falha_transitoria(ValueError("x")))
     else:
         o = asyncio.run(s.obter("202638463", "202600737656"))
         print(o[:600]); t("online: inteiro teor", "1ª Câmara Cível" in o)

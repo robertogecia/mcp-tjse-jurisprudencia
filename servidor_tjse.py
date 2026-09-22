@@ -339,6 +339,12 @@ async def _http(metodo: str, url: str, *, params: dict | None = None, data: dict
         async with httpx.AsyncClient(timeout=90, follow_redirects=False, headers=h) as c:
             r = await c.request(metodo, url, params=params, content=corpo)
     except Exception as ex:
+        # Timeout/queda de conexão NÃO é bloqueio: com seções de câmara cível acima de 2 MB, o timeout é evento
+        # esperado. Pausar 30 min por isso deixava o advogado sem nem conferir citação já em disco (achado da
+        # comparação com o servidor do TRF1, 22/09/2026). Só o que sugere recusa do portal arma o disjuntor.
+        if _falha_transitoria(ex):
+            raise PesquisaNaoRealizada(f"falha de rede transitória ({type(ex).__name__}); nada foi pausado, "
+                                       "chame de novo. Isto NÃO é 'não localizado'.")
         _pausar(PAUSA_ERRO_S, f"falha de rede: {type(ex).__name__}")
         raise PesquisaNaoRealizada(f"falha de rede ({type(ex).__name__}); pausa de 30 min, sem retentativa.")
     if r.status_code in (429, 403):
@@ -358,6 +364,14 @@ async def _http(metodo: str, url: str, *, params: dict | None = None, data: dict
         _pausar(PAUSA_DESAFIO_S, "desafio anti-robô/CAPTCHA detectado")
         raise PesquisaNaoRealizada("o portal respondeu com desafio anti-robô; pausa de 24 h. Nunca contornar.")
     return texto
+
+
+def _falha_transitoria(ex: BaseException) -> bool:
+    """Timeout/queda de conexão x recusa do portal. Só a segunda arma o disjuntor: seção de câmara cível passa de
+    2 MB, então estourar o timeout é normal e não é sinal de bloqueio."""
+    nomes = {"TimeoutException", "ConnectTimeout", "ReadTimeout", "WriteTimeout", "PoolTimeout",
+             "ConnectError", "ReadError", "WriteError", "RemoteProtocolError", "NetworkError"}
+    return any(c.__name__ in nomes for c in type(ex).__mro__)
 
 
 def _quote_latin1(v: str) -> str:
