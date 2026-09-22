@@ -142,6 +142,11 @@ uso real, `RT*` e `RTB*` dos dois red teams. `--selftest --online` faz uma requi
 o índice é refeito do HTML bruto guardado em `base/secoes/`, sem rede. Protocolo medido: `references/protocolo-boletim.md`.
 Relatórios de red team: `references/`. Histórico: `CHANGELOG.md`.
 
+## Autor
+
+**Roberto Grécia Bessa** — OAB/RO 7865-A
+Instagram: [@robertogrecia](https://instagram.com/robertogrecia)
+
 ## Licença
 
 MIT.

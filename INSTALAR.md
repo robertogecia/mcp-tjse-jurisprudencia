@@ -173,3 +173,8 @@ reconstruído do HTML bruto já guardado em disco, sem rede.
 ## Desinstalar
 
 Remova a entrada do arquivo de configuração do Claude e apague a pasta do projeto.
+
+## Autor
+
+**Roberto Grécia Bessa** — OAB/RO 7865-A
+Instagram: [@robertogrecia](https://instagram.com/robertogrecia)
