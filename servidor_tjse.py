@@ -387,11 +387,13 @@ def parse_menu(h: str) -> list[dict[str, Any]]:
     return out
 
 
-PARSER_VERSAO = 11  # mudou o parser → reindexa do HTML bruto em disco, sem rede
+PARSER_VERSAO = 13  # mudou o parser → reindexa do HTML bruto em disco, sem rede
 _RE_LINK_TEOR = re.compile(r"relatorio\.wsp\?(?:tmp\.numprocesso=(\d+)&(?:amp;)?tmp\.numacordao=(\d+)"
                            r"|tmp\.numacordao=(\d+)&(?:amp;)?tmp\.numprocesso=(\d+))")
 # tolerante a grafia do próprio Boletim ("RELATOR ORIGNÁRIO"): "RELAT…" + até 4 palavras + ":"
-_RE_ROT_RELATOR = re.compile(r"(?i)^(relat\w*(?:\(a\))?(?:\s+[\wÀ-ÿ()/]+){0,4}?)\s*:\s*(.*)$")
+# tolerante à grafia do próprio Boletim: "RELATOR ORIGNÁRIO", "RELATOR) ORIGINÁRIA" (perdeu o "(A" e sobrou o
+# parêntese), "RELATOR(A)", "RELATORA P/ ACÓRDÃO". Sem isso o nome de quem julgou some do índice.
+_RE_ROT_RELATOR = re.compile(r"(?i)^(relat[\w()\[\]]*(?:\s+[\wÀ-ÿ()\[\]/.-]+){0,4}?)\s*:\s*(.*)$")
 _RE_CARGO_VAGO = re.compile(r"(?i)vaga\s+de\s+desembargador|cargo\s+vago|^des(?:a|\(a\))?\.?\s*$")
 
 

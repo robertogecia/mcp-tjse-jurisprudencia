@@ -123,3 +123,9 @@
   e o `recall@10` quase triplica numa (t2 7→20 %), mas cai em outras duas, porque termo genérico ("quantum
   indenizatório", em 24 % do corpus) sobe ruído ao topo. Fica como REFERÊNCIA para quem monta os `grupos`, que é
   onde a escolha é informada, e não como expansão cega.
+
+- **v0.7.4 (21/09/2026)** — o detector de anomalias da sincronização acusou relator vazio nas edições novas, e eram
+  duas grafias do próprio Boletim que o parser não reconhecia: `RELATOR(A) ORIGINÁRIO(A)` (parênteses colados) e
+  `RELATOR) ORIGINÁRIA` (o "(A" se perdeu e sobrou o parêntese). De **198 acórdãos sem relator para 1**, em 25.176 —
+  os 196 restantes são "VAGA DE DESEMBARGADOR", marcador administrativo já anotado como tal. Índice em 25.176
+  acórdãos, 8 edições, janeiro a agosto de 2026.

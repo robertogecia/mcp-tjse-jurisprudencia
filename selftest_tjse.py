@@ -134,6 +134,10 @@ def main(online: bool = False) -> int:
     t("RTB25 '§ 1º' = '§1º', 'nº 12' = 'n. 12', ligadura", s.norm("§ 1º do art. 5º") == s.norm("§1o do art. 5o") and s.norm("nº 12") == s.norm("n. 12") and s.norm("ﬁm") == "fim")
     vg = '<table><tr><td><font style="font-size: 7pt">' + "EMENTA " * 20 + '<br />PROCESSO: <a href="r">1</a><br />ACÓRDÃO: <a href="http://x/relatorio.wsp?tmp.numprocesso=111&amp;tmp.numacordao=444">444</a><br /><b>AC N&ordm; 2/2026</b><br /><b>RELATOR ORIGIN&Aacute;RIO: VAGA DE DESEMBARGADOR (G-21)</b><br /><b>RELATOR SUBSTITUTO: JUIZ FULANO DE TAL</b></font></td></tr></table>'
     t("RTB9 cargo vago cede ao substituto", s.parse_secao(vg)[0]["relator"] == "JUIZ FULANO DE TAL")
+    for rot_ in ("RELATOR(A) ORIGINÁRIO(A): DES(A) FULANO DE TAL", "RELATOR) ORIGINÁRIA: DESA. FULANA",
+                 "RELATORA ORIGINÁRIA: DESA. X", "RELATOR PARA O ACÓRDÃO: DES. Y", "RELATOR SUBSTITUTO: JUIZ Z"):
+        m_ = s._RE_ROT_RELATOR.match(rot_)
+        t(f"R5 rótulo do Boletim reconhecido: {rot_.split(':')[0]}", m_ is not None and m_.group(2).strip() != "")
     t("RTB16 rótulo com grafia errada não engole o nome", s.parse_secao(vg.replace("RELATOR SUBSTITUTO", "RELATOR SUBSTITTUTO"))[0]["relator"] == "JUIZ FULANO DE TAL")
     try: s.montar_fts("dano §§§ moral", None); t("RTB17 pontuação pura é ignorada, termo com letra nunca some", True)
     except ValueError: t("RTB17 pontuação pura é ignorada, termo com letra nunca some", False)
