@@ -888,9 +888,19 @@ def _campos_de_custodia(rec: dict) -> dict:
     """Campos no formato dos recibos dos MCPs do TJRO e do STJ — `id_documento`, `nr_processo`, `texto` — para que um
     verificador de fichas (ex.: lint de citações de peça) confira o que foi citado contra o que o portal entregou."""
     d = parse_teor(rec["html"])
+    corpo = d["texto"][d["inicio_conteudo"]:]
+    # Quem lê o recibo depois (um lint de citações, por exemplo) não tem como saber que parte do voto é palavra do
+    # TJSE: o voto transcreve ementas inteiras de outros tribunais, e um trecho copiado de lá está literalmente no
+    # texto. Então o recibo leva também O QUE NÃO É palavra do tribunal, para que a conferência avise em vez de aprovar.
+    tn = norm(corpo)
+    ini = next((m.start() for m in re.finditer(r"\bacordam\b", tn) if "estado de sergipe" in tn[m.start(): m.start() + 450]), 0)
+    div = faixa_divergente(tn, ini)
     return {"id_documento": rec["acordao"], "nr_processo": rec["processo"], "tribunal": "TJSE", "tipo": "ACÓRDÃO",
             "data_julgamento": br(d.get("data_julgamento")), "orgao": d.get("orgao_fecho") or "", "relator": d.get("relator") or "",
-            "texto": d["texto"][d["inicio_conteudo"]:]}
+            "texto": corpo,
+            "texto_transcrito": " \n".join(tn[a:b] for a, b in faixas_transcritas(tn, ini)),
+            "texto_divergente": tn[div[0]: div[1]] if div else "",
+            "normalizacao": "sem acento, minúsculas, espaço único (campos *_transcrito e *_divergente)"}
 
 
 def gravar_recibo(acordao: str, processo: str, html_bruto: str) -> dict:

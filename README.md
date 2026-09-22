@@ -68,7 +68,7 @@ Em `integracoes/` há material opcional para quem usa Claude Code: uma skill aut
 - A ementa do Boletim vem em CAIXA ALTA e pode diferir da original: aspas só depois de `verificar_citacao_tjse`.
 - O voto do TJSE costuma **transcrever ementas e até fechos de outros tribunais**. O alerta de transcrição pega a grande
   maioria desses casos (medição em `CHANGELOG.md`), mas não substitui ler o acórdão.
-- O inteiro teor nomeia partes — às vezes menor de idade e seu representante. o recibo traz `id_documento`, `nr_processo`, `tribunal` e `texto`, para verificadores de ficha de citação; `recibos/` e `base/` ficam com
+- O inteiro teor nomeia partes — às vezes menor de idade e seu representante. o recibo traz `id_documento`, `nr_processo`, `tribunal`, `texto` e ainda `texto_transcrito`/`texto_divergente` (o que NÃO é palavra do tribunal), para que um verificador de citação avise em vez de aprovar; `recibos/` e `base/` ficam com
   permissão 0700/0600 e fora do versionamento. **Não publique recibos.** Os fixtures deste repositório foram anonimizados.
 - O disjuntor é compartilhado entre processos pelo disco. Se o disco não aceitar gravação, a pausa vale só para o processo
   que a sofreu, e sem a trava nenhum processo requisita (fail-closed).

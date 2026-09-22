@@ -56,3 +56,9 @@
   `TJSE_DIR_RECIBOS` escolhe a pasta.
   Deliberadamente NÃO portado: cache de 5 min (a busca é local), disjuntor adaptativo com escada (o do TJSE não foi
   bloqueado e limite sem medição é limite inventado), filtros de assunto/tipo/grau (o Boletim não os tem).
+
+- **v0.6.1 (21/09/2026)** — o recibo passa a levar `texto_transcrito` e `texto_divergente` (texto normalizado): quem
+  lê o recibo depois — um lint de citações, por exemplo — não teria como saber que parte do voto é palavra do próprio
+  tribunal, porque um trecho copiado de outro julgado está literalmente no inteiro teor. Recibo antigo migra sozinho,
+  sem rede, na primeira leitura. Serviu para fechar, na `peticao-rg`, o caso em que o lint aprovava como palavra do
+  TJSE um fecho do TJCE transcrito no voto.
