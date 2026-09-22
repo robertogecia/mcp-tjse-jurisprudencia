@@ -345,6 +345,17 @@ def main(online: bool = False) -> int:
         t("RTD1 timeout NAO arma o disjuntor", s._falha_transitoria(_hx.ReadTimeout("x")))
         t("RTD2 queda de conexao NAO arma o disjuntor", s._falha_transitoria(_hx.ConnectError("x")))
         t("RTD3 erro que nao e de rede ARMA o disjuntor", not s._falha_transitoria(ValueError("x")))
+        n0 = s._ler_estado()["nivel"]
+        s._pausar(0.01, "HTTP 429 (teste)", sobe_escada=True)
+        t("RTD4 recusa do portal APERTA o ritmo", s._ler_estado()["nivel"] == min(n0 + 1, len(s.ESCADA) - 1))
+        n1 = s._ler_estado()["nivel"]
+        s._pausar(0.01, "falha comum (teste)")
+        t("RTD5 erro comum NAO aperta o ritmo", s._ler_estado()["nivel"] == n1)
+        t("RTD6 degrau apertado tem espacamento maior e teto menor",
+          s.ESCADA[n1][0] > s.ESCADA[0][0] and s.ESCADA[n1][1] < s.ESCADA[0][1])
+        for _ in range(s.SUCESSOS_PARA_RELAXAR):
+            s._registrar_sucesso()
+        t("RTD7 consultas limpas AFROUXAM o ritmo", s._ler_estado()["nivel"] == n1 - 1)
     else:
         o = asyncio.run(s.obter("202638463", "202600737656"))
         print(o[:600]); t("online: inteiro teor", "1ª Câmara Cível" in o)

@@ -124,6 +124,11 @@ PAUSA_BLOQUEIO_S = 6 * 3600
 PAUSA_DESAFIO_S = 24 * 3600
 PAUSA_ERRO_S = 30 * 60
 PAUSA_ILEGIVEL_S = 3600
+# Escada de ritmo: o portal do TJSE é o mais frágil do conjunto, então o ritmo aperta sozinho quando ele recusa e
+# só afrouxa depois de muitas consultas limpas (ideia trazida do servidor do TRF1, 22/09/2026). Nível 0 é o ritmo
+# normal; cada recusa sobe um degrau, e SUCESSOS_PARA_RELAXAR consultas seguidas sem incidente descem um.
+ESCADA = [(6.0, 20), (12.0, 10), (30.0, 6), (60.0, 3)]  # (espaçamento em s, teto por janela de 10 min)
+SUCESSOS_PARA_RELAXAR = 100
 
 ORGAOS_FECHO = ["Tribunal Pleno", "Seção Especializada Cível", "1ª Câmara Cível", "2ª Câmara Cível",
                 "Câmara Criminal", "Turma de Uniformização", "1ª Turma Recursal", "2ª Turma Recursal",
@@ -255,7 +260,7 @@ def _trava():
 
 def _ler_estado() -> dict[str, Any]:
     if not os.path.exists(ARQ_ESTADO):
-        return {"requisicoes": [], "pausa_ate": 0, "motivo": "", "incidentes": []}
+        return {"requisicoes": [], "pausa_ate": 0, "motivo": "", "incidentes": [], "nivel": 0, "sucessos": 0}
     try:
         with open(ARQ_ESTADO, encoding="utf-8") as f:
             e = json.load(f)
@@ -263,11 +268,14 @@ def _ler_estado() -> dict[str, Any]:
         return {  # tipos saneados: JSON válido com tipo errado também é "ilegível"
             "requisicoes": [float(t) for t in e["requisicoes"] if 0 <= agora - float(t) < 86400],  # poda futuro e velho
             "pausa_ate": float(e.get("pausa_ate") or 0), "motivo": str(e.get("motivo") or ""),
-            "incidentes": [i for i in (e.get("incidentes") or []) if isinstance(i, dict)][-30:]}
+            "incidentes": [i for i in (e.get("incidentes") or []) if isinstance(i, dict)][-30:],
+            "nivel": min(max(int(e.get("nivel") or 0), 0), len(ESCADA) - 1),
+            "sucessos": max(int(e.get("sucessos") or 0), 0)}
     except Exception:
         # fail-closed: estado ilegível não libera requisição
         return {"requisicoes": [], "pausa_ate": time.time() + PAUSA_ILEGIVEL_S,
-                "motivo": "estado do disjuntor ilegível (fail-closed)", "incidentes": []}
+                "motivo": "estado do disjuntor ilegível (fail-closed)", "incidentes": [],
+                "nivel": len(ESCADA) - 1, "sucessos": 0}
 
 
 def _gravar_estado(e: dict[str, Any]) -> None:
@@ -277,7 +285,7 @@ def _gravar_estado(e: dict[str, Any]) -> None:
     os.replace(tmp, ARQ_ESTADO)
 
 
-def _pausar(segundos: float, motivo: str) -> None:
+def _pausar(segundos: float, motivo: str, sobe_escada: bool = False) -> None:
     global _PAUSA_MEMORIA
     _PAUSA_MEMORIA = max(_PAUSA_MEMORIA, time.time() + segundos)  # vale mesmo se o disco falhar
     with _trava(), contextlib.suppress(OSError):
@@ -286,6 +294,22 @@ def _pausar(segundos: float, motivo: str) -> None:
         e["motivo"] = motivo
         e["incidentes"] = (e.get("incidentes", []) + [{"quando": _dt.datetime.now().isoformat(timespec="seconds"),
                                                        "motivo": motivo}])[-30:]
+        if sobe_escada:  # só recusa do portal aperta o ritmo; timeout e erro interno, não
+            e["nivel"] = min(int(e.get("nivel") or 0) + 1, len(ESCADA) - 1)
+            e["sucessos"] = 0
+        _gravar_estado(e)
+
+
+def _registrar_sucesso() -> None:
+    """Consulta limpa. Depois de SUCESSOS_PARA_RELAXAR seguidas, o ritmo desce um degrau."""
+    with _trava(), contextlib.suppress(OSError):
+        e = _ler_estado()
+        if e["nivel"] == 0:
+            return
+        e["sucessos"] += 1
+        if e["sucessos"] >= SUCESSOS_PARA_RELAXAR:
+            e["nivel"] -= 1
+            e["sucessos"] = 0
         _gravar_estado(e)
 
 
@@ -306,10 +330,12 @@ async def _pedir_vez() -> None:
             reqs = e["requisicoes"]
             if len(reqs) >= DIA_MAX:
                 raise PesquisaNaoRealizada(f"teto diário de {DIA_MAX} requisições atingido.")
-            if len([t for t in reqs if agora - t < JANELA_S]) >= JANELA_MAX:
-                raise PesquisaNaoRealizada(f"teto de {JANELA_MAX} requisições em {JANELA_S // 60} min atingido; "
-                                           "tente de novo em alguns minutos.")
-            espera = (max(reqs) + ESPACAMENTO_S - agora) if reqs else 0
+            espacamento, janela_max = ESCADA[e["nivel"]]
+            if len([t for t in reqs if agora - t < JANELA_S]) >= janela_max:
+                raise PesquisaNaoRealizada(f"teto de {janela_max} requisições em {JANELA_S // 60} min atingido"
+                                           + (f" (ritmo apertado, degrau {e['nivel']} da escada, por recusa anterior do "
+                                              "portal)" if e["nivel"] else "") + "; tente de novo em alguns minutos.")
+            espera = (max(reqs) + espacamento - agora) if reqs else 0
             if espera <= 0:
                 e["requisicoes"] = reqs + [agora]
                 try:
@@ -318,7 +344,7 @@ async def _pedir_vez() -> None:
                     raise PesquisaNaoRealizada(f"não consegui registrar a requisição no disjuntor ({type(ex).__name__}); "
                                                "sem registro não há requisição (fail-closed).")
                 return
-        await asyncio.sleep(min(max(espera, 0.05), ESPACAMENTO_S))
+        await asyncio.sleep(min(max(espera, 0.05), ESCADA[-1][0]))
     raise PesquisaNaoRealizada("disputa pelo disjuntor com outro processo; tente de novo em instantes.")
 
 
@@ -348,7 +374,7 @@ async def _http(metodo: str, url: str, *, params: dict | None = None, data: dict
         _pausar(PAUSA_ERRO_S, f"falha de rede: {type(ex).__name__}")
         raise PesquisaNaoRealizada(f"falha de rede ({type(ex).__name__}); pausa de 30 min, sem retentativa.")
     if r.status_code in (429, 403):
-        _pausar(PAUSA_BLOQUEIO_S, f"HTTP {r.status_code}")
+        _pausar(PAUSA_BLOQUEIO_S, f"HTTP {r.status_code}", sobe_escada=True)
         raise PesquisaNaoRealizada(f"HTTP {r.status_code} — possível bloqueio; pausa de 6 h, zero retentativa.")
     if r.status_code != 200:
         _pausar(PAUSA_ERRO_S, f"HTTP {r.status_code}")
@@ -361,8 +387,9 @@ async def _http(metodo: str, url: str, *, params: dict | None = None, data: dict
                                                  "javascript:abre(", "function submitwigrid"))
     # a marca só vale como desafio se a página NÃO for o que pedimos: ementa de consumidor fala em "código de segurança"
     if any(m in janelas for m in MARCAS_DESAFIO) and not conteudo_esperado:
-        _pausar(PAUSA_DESAFIO_S, "desafio anti-robô/CAPTCHA detectado")
+        _pausar(PAUSA_DESAFIO_S, "desafio anti-robô/CAPTCHA detectado", sobe_escada=True)
         raise PesquisaNaoRealizada("o portal respondeu com desafio anti-robô; pausa de 24 h. Nunca contornar.")
+    _registrar_sucesso()
     return texto
 
 
@@ -1823,8 +1850,11 @@ def _diagnostico() -> str:
     inc = "\n".join(f"  {i['quando']} — {i['motivo']}" for i in e.get("incidentes", [])[-8:]) or "  nenhum"
     return (f"tjse_jurisprudencia v{VERSAO} (sem rede nesta chamada)\n"
             f"Disjuntor: {'EM PAUSA por ~%d min — %s' % (pausa / 60 + 1, e.get('motivo')) if pausa > 0 else 'livre'}\n"
-            f"Requisições: {len([t for t in reqs if agora - t < JANELA_S])}/{JANELA_MAX} em 10 min · {len(reqs)}/{DIA_MAX} em 24 h · "
-            f"espaçamento {ESPACAMENTO_S:.0f} s\nÍndice ({mb:.1f} MB, parser v{PARSER_VERSAO}): {cobertura(con)}\nPor seção:\n{por_secao}\n"
+            f"Requisições: {len([t for t in reqs if agora - t < JANELA_S])}/{ESCADA[e['nivel']][1]} em 10 min · {len(reqs)}/{DIA_MAX} em 24 h · "
+            f"espaçamento {ESCADA[e['nivel']][0]:.0f} s"
+            + (f" · RITMO APERTADO: degrau {e['nivel']} de {len(ESCADA) - 1} por recusa anterior do portal; "
+               f"{SUCESSOS_PARA_RELAXAR - e['sucessos']} consulta(s) limpa(s) para afrouxar" if e["nivel"] else "")
+            + f"\nÍndice ({mb:.1f} MB, parser v{PARSER_VERSAO}): {cobertura(con)}\nPor seção:\n{por_secao}\n"
             + (f"⚠ Edições INCOMPLETAS dentro do intervalo coberto: {', '.join(buracos)} — sincronize antes de confiar em zero resultado.\n" if buracos else "")
             + f"Grafo de citações: {n_cit} arestas ({n_proc_cit} processos do TJSE citados)\n"
             + f"Recibos de inteiro teor: {n_rec}\nIncidentes:\n{inc}\n"
@@ -1856,19 +1886,43 @@ def _servidor():
                                    data_inicio: str | None = None, data_fim: str | None = None,
                                    ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo",
                                    cita: str | None = None) -> str:
-        """Busca acórdãos de 2º grau do TJSE no ÍNDICE LOCAL do Boletim Jurídico (zero rede). Sem acento e sem caixa.
-        `grupos`=[["dano moral"],["negativação","inscrição indevida"]] → E entre grupos, OU dentro; termo com `$`
-        no fim é radical (`consign$`). `consulta` livre: palavras e "frases" em E (operador em caixa alta é recusado).
-        Cada termo casa também no outro número (dano moral ↔ danos morais); `exato=true` desliga.
-        Filtros: `orgao` (ex. "1ª Câmara Cível"), `classe`, `relator`, `numero` (processo de 12 dígitos ou acórdão de 9),
-        `data_inicio`/`data_fim` (dd/mm/aaaa — data de PUBLICAÇÃO do Boletim; o julgamento é do mês anterior).
-        `ordenacao`: relevantes (bm25, padrão) | recentes | antigos.
-        `em` busca só numa parte da ementa estruturada (padrão CNJ, ~2/3 dos acórdãos): `questao` (a pergunta que o
-        tribunal se põe), `tese` (a tese de julgamento), `razoes`, `caso`, `dispositivo`, `cabecalho` — vale combinar
-        ("questao,tese"). Quem não segue o padrão tem tudo em `cabecalho`, então buscar por campo não perde acórdão.
-        `cita` filtra pelo que o acórdão CITA: "Tema 1061", "Súmula 479/STJ", "IRDR 15" ou nº de processo do TJSE.
-        Cobre só as edições sincronizadas (a saída diz quais) e NÃO cobre Turmas Recursais nem monocráticas: zero
-        resultado aqui nunca é 'não localizado no TJSE'. Resultado é 'só ementa/índice' até `obter_inteiro_teor_tjse`."""
+        """Busca acórdãos de 2º grau do TJSE no ÍNDICE LOCAL do Boletim Jurídico. Zero rede, zero custo de disjuntor.
+        Consulta sem acento e sem caixa.
+
+        Args:
+            consulta: texto livre. Palavras e "frases entre aspas" combinam em E; operador em CAIXA ALTA é recusado
+                (use `grupos`). Cada termo casa também no outro número (dano moral ↔ danos morais).
+            grupos: [["dano moral"], ["negativação", "inscrição indevida"]] → E entre grupos, OU dentro de cada um.
+                É a forma mais precisa de buscar: prefira a `consulta` livre só para explorar. Termo com `$` no fim
+                é radical (`consign$` casa consignado/consignação).
+            orgao: seção do Boletim, ex. "1ª Câmara Cível". Vem do CADASTRO; o órgão que vale para citar é o do
+                FECHO do acórdão, que só `obter_inteiro_teor_tjse` lê.
+            classe: classe processual, ex. "Apelação Cível".
+            relator: nome ou parte do nome do relator.
+            numero: processo (12 dígitos) ou acórdão (9 dígitos). Dispensa `consulta`/`grupos`.
+            por_pagina: até 50. Busca ampla com 50 já estourou o limite de saída do chamador em servidor irmão
+                (TRF1, 11/09/2026) — comece em 10 e só aumente com filtro aplicado.
+            pagina: 1 em diante.
+            data_inicio, data_fim: dd/mm/aaaa, data de PUBLICAÇÃO do Boletim. O julgamento é do MÊS ANTERIOR à
+                publicação — filtrar por mês de julgamento pede a janela deslocada em um mês.
+            ordenacao: "relevantes" (bm25, padrão) | "recentes" | "antigos".
+            exato: True desliga a variação singular/plural.
+            em: restringe a busca a uma parte da ementa estruturada no padrão CNJ (~2/3 dos acórdãos): "questao"
+                (a pergunta que o tribunal se põe), "tese", "razoes", "caso", "dispositivo", "cabecalho". Vale
+                combinar ("questao,tese"). Quem não segue o padrão tem tudo em "cabecalho", que entra sempre —
+                por isso buscar por campo NÃO perde acórdão.
+            cita: filtra pelo que o acórdão CITA — "Tema 1061", "Súmula 479/STJ", "IRDR 15" ou processo do TJSE.
+
+        Returns:
+            Lista de ementas com processo, acórdão, classe, relator, órgão do cadastro, data de publicação e link,
+            mais um PANORAMA (resultado declarado, órgãos, classes, precedentes citados, vocabulário) que serve para
+            decidir o que ler — não é posição sobre a tese. Tudo é 'só ementa/índice': a ementa do Boletim vem em
+            CAIXA ALTA e NÃO serve de fonte para aspas. Antes de citar, `obter_inteiro_teor_tjse` e, para qualquer
+            transcrição literal, `verificar_citacao_tjse`.
+
+            Cobre apenas as edições sincronizadas (a saída diz quais) e NÃO cobre Turmas Recursais, monocráticas nem
+            o período anterior ao Boletim indexado. Zero resultado aqui nunca é 'não localizado no TJSE' — é
+            'não localizado nesta janela'; o complemento é o JusRatio."""
         return buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
                       ordenacao, exato, em, cita)
 
