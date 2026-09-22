@@ -83,7 +83,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.7.0"
+VERSAO = "0.7.3"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -387,7 +387,7 @@ def parse_menu(h: str) -> list[dict[str, Any]]:
     return out
 
 
-PARSER_VERSAO = 10  # mudou o parser → reindexa do HTML bruto em disco, sem rede
+PARSER_VERSAO = 11  # mudou o parser → reindexa do HTML bruto em disco, sem rede
 _RE_LINK_TEOR = re.compile(r"relatorio\.wsp\?(?:tmp\.numprocesso=(\d+)&(?:amp;)?tmp\.numacordao=(\d+)"
                            r"|tmp\.numacordao=(\d+)&(?:amp;)?tmp\.numprocesso=(\d+))")
 # tolerante a grafia do próprio Boletim ("RELATOR ORIGNÁRIO"): "RELAT…" + até 4 palavras + ":"
@@ -470,7 +470,11 @@ _SECOES_EMENTA = [
 # "CASO EM EXAMEAGRAVO INTERNO" (sem separador algum). Então o separador é pontuação, espaço, dígito ou letra
 # maiúscula — na prática, opcional. Isso só é seguro porque os rótulos são expressões longas e distintivas; o
 # "dispositivo", que é palavra comum de ementa, exige numeral romano ou "e tese" (ver campos_da_ementa).
-_RE_SECAO = re.compile(r"(?i)(?:^|[\s.;:])(?P<num>[ivx]{1,4}\s*[.\-–—)]?\s*)?(?P<rot>" + "|".join(p for _, p in _SECOES_EMENTA)
+# o numeral também vem colado na palavra anterior ("COMPETÊNCIAIII. RAZÕES DE DECIDIR") e às vezes é algarismo
+# arábico ("4. DISPOSITIVO") — sem os dois, a seção perdia o numeral, o filtro de prioridade a descartava e o
+# campo anterior a engolia (red team C3 e C4).
+_RE_SECAO = re.compile(r"(?i)(?:^|[\s.;:]|(?<=[a-zà-ÿ])(?=[IVX]{2,4}[.\-–—)]))"
+                       r"(?P<num>(?:[ivx]{1,4}|\d{1,2})\s*[.\-–—)]?\s*)?(?P<rot>" + "|".join(p for _, p in _SECOES_EMENTA)
                        + r")(?:\s*[.:\-–—]\s*|\s+|(?=[\dA-ZÀ-Ý]))")
 _SUBCAMPOS = [
     ("tese", r"teses?\s+de\s+julgamento"),
@@ -491,10 +495,11 @@ def campos_da_ementa(ementa: str) -> dict[str, str]:
         rot = next(k for k, p in _SECOES_EMENTA if re.fullmatch(p, m.group("rot"), re.I))
         # "dispositivo" sozinho é palavra comum de ementa ("dispositivo legal", "o dispositivo da sentença"): só vale
         # como seção com o numeral romano antes ou "e tese" depois. Os outros três rótulos são distintivos por si.
-        if rot == "dispositivo" and not m.group("num") and not re.search(r"(?i)e\s+tese", m.group("rot")):
+        num = (m.group("num") or "").strip()
+        if rot == "dispositivo" and not num and not re.search(r"(?i)e\s+tese", m.group("rot")):
             continue
-        marcas.append((rot, m.start("rot"), m.end(), bool(m.group("num"))))
-        com_num = com_num or bool(m.group("num"))
+        marcas.append((rot, m.start("rot"), m.end(), bool(num)))
+        com_num = com_num or bool(num)
     # "a questão em discussão nos autos" no meio de uma frase também casa. Quando ALGUMA marca veio com numeral
     # romano, só as com numeral valem: são os títulos de seção de verdade.
     if com_num:
@@ -770,10 +775,12 @@ def _frase_fts(termo: str, exato: bool = False) -> str:
 
 # Palavras que não distinguem um acórdão de outro. Sem removê-las, a pergunta em português vira um E lógico com
 # artigo e preposição dentro — e o harness mediu o resultado disso: 0 % de recall nas 6 consultas (21/09/2026).
-_VAZIAS = set("""a o as os um uma uns umas de do da dos das em no na nos nas por para pelo pela pelos pelas com sem
-sob sobre entre ate apos ante e ou mas que se qual quais quando onde como porque pois ja nao sim ha he ser sao foi
-era eram tem tinha teve havia deve devem pode podem ha existe existem qualquer algum alguma cabe cabivel caso casos
-direito processual civil acordao decisao recurso apelacao agravo parte partes autos processo juizo tribunal camara
+# "nao", "sem" e "menor" NÃO entram: mudam o sentido jurídico. "agravo", "recurso", "direito", "processo" também
+# saíram — são o assunto da consulta com a mesma frequência com que são praxe, e descartá-las em silêncio
+# transformava "agravo de instrumento" em busca por "instrumento" (red team C8). O que sobra é gramática.
+_VAZIAS = set("""a o as os um uma uns umas de do da dos das em no na nos nas por para pelo pela pelos pelas com
+sob sobre entre ate apos ante e ou mas que se qual quais quando onde como porque pois ja sim ha he ser sao foi
+era eram tem tinha teve havia deve devem pode podem existe existem qualquer algum alguma
 seguinte seguintes mesmo mesma outro outra seu sua seus suas este esta isso aquilo lhe lhes ao aos""".split())
 
 
@@ -795,18 +802,22 @@ def partes_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool
         if re.search(r"\b(E|OU|NAO|NÃO|ADJ\d*|PROX\d*|AND|OR|NOT|NEAR)\b", fora_de_aspas):
             raise ValueError("operador em caixa alta não é aceito na `consulta` (índice local FTS5): use `grupos` "
                              "— cada grupo é OU entre sinônimos, grupos se combinam em E.")
-        soltas = []
+        soltas, ignoradas = [], []
         for m in re.finditer(r'"([^"]+)"|(\S+)', consulta):
             aspas, tok = bool(m.group(1)), (m.group(1) or m.group(2))
             f = _frase_fts(tok, exato)
             if not f:
                 continue
             if aspas:
-                partes.append((f'"{tok}"', f, True))  # entre aspas = o usuário quer exatamente isso: obrigatório
-            elif norm(tok) not in _VAZIAS and len(re.sub(r"\W", "", norm(tok), flags=re.U)) > 2:
-                soltas.append((tok, f, False))
+                partes.append((f'"{tok}"', _frase_fts(tok, True), True))  # aspas = exatamente isso: sem variante
+            elif norm(tok) in _VAZIAS or len(re.sub(r"\W", "", norm(tok), flags=re.U)) <= 2:
+                ignoradas.append(tok)
+            else:
+                soltas.append((tok, f, not not exato))  # `exato` também obriga cada palavra da consulta
         partes += soltas
-        if not partes:
+        if ignoradas:
+            partes.append(("__ignoradas__:" + ", ".join(ignoradas), "", None))
+        if not [x for x in partes if x[2] is not None]:
             raise ValueError("a consulta só tem palavras comuns (artigos, preposições, palavras de praxe do jargão), "
                              "que não distinguem um acórdão de outro — use termos do tema, ou `grupos`.")
     return partes
@@ -819,8 +830,8 @@ def montar_fts(consulta: str | None, grupos: list[list[str]] | None, exato: bool
 
 
 def expressao_fts(partes: list[tuple[str, str, bool]]) -> str:
-    obrig = [e for _, e, ob in partes if ob]
-    opc = [e for _, e, ob in partes if not ob]
+    obrig = [e for _, e, ob in partes if ob is True]
+    opc = [e for _, e, ob in partes if ob is False]
     if opc:
         obrig.append("(" + " OR ".join(opc) + ")" if len(opc) > 1 else opc[0])
     return " AND ".join(obrig)
@@ -856,6 +867,7 @@ _RE_ANCORAS = [
     # o número da súmula colide entre tribunais (Súmula 7 do STJ ≠ do TJSE): quando o texto diz de quem é, o rótulo diz
     (re.compile(r"s[úu]mula\s+n?[º°.]*\s*(\d{1,4})(?:\s*/\s*|\s+d[oa]\s+)?(STJ|STF|TJSE|TST)?", re.I), "Súmula %s"),
     (re.compile(r"tema\s+(?:repetitivo\s+|de\s+repercuss[ãa]o\s+geral\s+)?n?[º°.]*\s*(\d{1,4}(?:\.\d{3})?)", re.I), "Tema %s"),
+    (re.compile(r"\bSV\s*n?[º°.]*\s*(\d{1,3})\b"), "Súmula Vinculante %s"),
     (re.compile(r"\bIRDR\s+n?[º°.]*\s*(\d{1,4})", re.I), "IRDR %s"),
     (re.compile(r"\bIAC\s+n?[º°.]*\s*(\d{1,4})", re.I), "IAC %s"),
 ]
@@ -988,7 +1000,7 @@ def diagnostico_zero(con: sqlite3.Connection, partes: list[tuple[str, str]]) -> 
         return ""
     cont = lambda ex: con.execute("SELECT COUNT(*) FROM fts WHERE fts MATCH ?", (ex,)).fetchone()[0]
     linhas = []
-    for k, (rot, ex, _ob) in enumerate(partes[:8]):
+    for k, (rot, ex, _ob) in enumerate([x for x in partes if x[2] is not None][:8]):
         so = cont(ex)
         sem = cont(expressao_fts([x for i, x in enumerate(partes) if i != k]) or ex)
         linhas.append(f"  {rot}: sozinho {so} · sem ele, o resto tem {sem}")
@@ -1415,13 +1427,23 @@ CAMPOS_BUSCAVEIS = ("cabecalho", "caso", "questao", "razoes", "dispositivo", "te
 _PESO_CAMPO = {"cabecalho": 3.0, "caso": 1.0, "questao": 5.0, "razoes": 2.0, "dispositivo": 1.0, "tese": 5.0}
 
 
+def base_ref(ref: str) -> str:
+    """Chave sem o tribunal: "Súmula 297" e "Súmula 297/STJ" são o MESMO precedente. A dedup de `ancoras` só vale
+    dentro de uma ementa; entre ementas as duas formas viravam chaves distintas e cada busca via metade do grafo
+    (red team C2: 60 chaves partidas, uma delas com 21 acórdãos de um lado e 248 do outro)."""
+    return (ref or "").split("/")[0].strip()
+
+
 def _ref_citada(cita: str) -> tuple[str, str] | None:
     """Normaliza o que o usuário pediu em `cita` para a chave do grafo."""
     dig = re.sub(r"\D", "", cita or "")
     if len(dig) == 12:
         return ("tjse", dig)
     a = ancoras(cita or "", 1)
-    return ("qualificado", a[0]) if a else None
+    if a:
+        return ("qualificado", a[0])
+    m = re.match(r"(?i)\s*(sv|s[uú]mula\s+vinculante)\s*n?[º°.]*\s*(\d{1,4})", cita or "")
+    return ("qualificado", f"Súmula Vinculante {m.group(2)}") if m else None
 
 
 def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
@@ -1449,24 +1471,35 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
         return f"Consulta recusada: {ex}"
     if not q and not numero and not cita:
         return "Informe `consulta`, `grupos`, `numero` ou `cita`."
+    colunas: list[str] = []
     campos_pedidos = [c.strip().lower() for c in re.split(r"[,;+ ]+", em or "tudo") if c.strip()]
+    if not campos_pedidos:  # `em=" "` montava "{} : (…)" e derrubava a busca com erro de sintaxe do FTS5
+        campos_pedidos = ["tudo"]
     if campos_pedidos == ["tudo"]:
         tab_fts, q_fts, pesos = "fts", q, "0, 5.0, 2.0, 1.0"
     else:
         ruins = [c for c in campos_pedidos if c not in CAMPOS_BUSCAVEIS]
         if ruins:
             return (f"`em` não conhece {ruins}. Use 'tudo' ou um ou mais de: {', '.join(CAMPOS_BUSCAVEIS)} "
-                    "(são as partes da ementa estruturada; ~2/3 dos acórdãos a seguem — nos demais tudo está em "
-                    "`cabecalho`, então busca por campo NÃO perde acórdão, só deixa de distingui-lo).")
+                    "(são as partes da ementa estruturada; ~2/3 dos acórdãos a seguem). O `cabecalho` — o resumo em "
+                    "caixa alta, que toda ementa tem — entra junto com peso baixo, para que o acórdão sem ementa "
+                    "estruturada não desapareça da busca por campo.")
         tab_fts = "fts_campos"
-        q_fts = "{" + " ".join(campos_pedidos) + "} : (" + (q or "") + ")" if q else q
-        pesos = "0, " + ", ".join(str(_PESO_CAMPO[c] if c in campos_pedidos else 0.0) for c in CAMPOS_BUSCAVEIS)
+        # 1/3 das ementas não segue o padrão CNJ e tem TUDO em `cabecalho`. Sem incluí-lo, buscar por `questao`
+        # simplesmente perde esses acórdãos — e a saída chegou a garantir o contrário (red team C1). Ele entra
+        # sempre, com peso baixo: quem tem o campo pedido continua ganhando o topo.
+        colunas = campos_pedidos + (["cabecalho"] if "cabecalho" not in campos_pedidos else [])
+        q_fts = "{" + " ".join(colunas) + "} : (" + (q or "") + ")" if q else q
+        pesos = "0, " + ", ".join(str(_PESO_CAMPO[c] if c in campos_pedidos else (0.5 if c == "cabecalho" else 0.0))
+                                  for c in CAMPOS_BUSCAVEIS)
     if cita:
         ref = _ref_citada(cita)
         if not ref:
             return (f"`cita`={cita!r} não é uma referência que o grafo conheça. Use 'Tema 1061', 'Súmula 479/STJ', "
                     "'IRDR 15', 'SV 47' ou o nº de PROCESSO do TJSE (12 dígitos).")
-        where.append("a.acordao IN (SELECT origem FROM citacoes WHERE tipo=? AND ref=?)"); args += [ref[0], ref[1]]
+        base_r = base_ref(ref[1])
+        where.append("a.acordao IN (SELECT origem FROM citacoes WHERE tipo=? AND (ref=? OR ref LIKE ?))")
+        args += [ref[0], base_r, base_r + "/%"]
         filtros_cita = f"cita={ref[1]}"
     else:
         filtros_cita = ""
@@ -1487,12 +1520,14 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     # COBERTURA: quantas unidades da consulta o acórdão casa. Sem isso, com palavras soltas em OU, um acórdão que
     # casa um único termo periférico disputa o topo com outro que casa todos — e o advogado só olha os 10 primeiros.
     # Só vale a pena calcular quando há mais de uma unidade opcional; as obrigatórias todas casam por construção.
-    unidades = [e for _, e, ob in partes if not ob] if not campos_pedidos == ["x"] else []
+    unidades = [e for _, e, ob in partes if ob is False]
+    ignoradas = [r.split(":", 1)[1] for r, _, ob in partes if ob is None]
+    partes = [x for x in partes if x[2] is not None]
     usa_cobertura = por_bm25 and len(unidades) > 1
     if por_bm25:
         if usa_cobertura:
             uni_sql = " UNION ALL ".join(f"SELECT acordao FROM {tab_fts} WHERE {tab_fts} MATCH ?" for _ in unidades)
-            uni_args = [("{" + " ".join(campos_pedidos) + "} : (" + u + ")") if campos_pedidos != ["tudo"] else u
+            uni_args = [("{" + " ".join(colunas) + "} : (" + u + ")") if campos_pedidos != ["tudo"] else u
                         for u in unidades]
             base = (f"(SELECT acordao ac, bm25({tab_fts}, {pesos}) rk FROM {tab_fts} WHERE {tab_fts} MATCH ?) r "
                     "JOIN acordaos a ON a.acordao = r.ac JOIN edicoes e USING(edicao) "
@@ -1536,7 +1571,9 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     termos += [norm(a or b) for a, b in re.findall(r'"([^"]+)"|(\S+)', consulta or "")]
     out = [cab + f"{total} resultado(s) — página {max(1, pagina)} ({por_pagina}/pág.) — ordem: {ordenacao}{filtro_data}"
            + (f" · ordenado primeiro por quantos dos {n_uni} termos o acórdão casa" if usa_cobertura else "")
-           + (f" · campo: {'+'.join(campos_pedidos)}" if campos_pedidos != ["tudo"] else "")
+           + (f" · palavras ignoradas por serem de praxe: {', '.join(ignoradas)}" if ignoradas else "")
+           + (f" · campo: {'+'.join(campos_pedidos)} (+ cabeçalho, peso baixo, para não perder o acórdão sem ementa "
+              "estruturada)" if campos_pedidos != ["tudo"] else "")
            + (f" · {filtros_cita}" if filtros_cita else "") + "\n"
            f"expressão{'' if exato else ' (com variação singular/plural; `exato=true` desliga)'}: "
            f"{q if len(q) < 700 else q[:700] + '…'}\n"]
@@ -1565,6 +1602,12 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
                    f"  {r['orgao']} (seção do Boletim; o órgão citável é o do FECHO) · {r['relator_rotulo'] or 'Relator'}: {r['relator']}\n"
                    f"  Boletim ed. {r['edicao']}, publicado em {br(r['ed_data'])} (data do julgamento só no inteiro teor){rec}\n"
                    f"  Ementa (Boletim, caixa alta): {trecho}\n  Inteiro teor: {link}\n  verificação: só ementa/índice\n")
+    if usa_cobertura and len(unidades) <= 8:
+        plenos = con.execute("SELECT COUNT(*) FROM (" + " INTERSECT ".join(
+            f"SELECT acordao FROM {tab_fts} WHERE {tab_fts} MATCH ?" for _ in unidades) + ")", uni_args).fetchone()[0]
+        out.insert(1, f"⚠ {total} acórdão(s) casam AO MENOS UM dos {n_uni} termos; {plenos} casam TODOS. O número "
+                      "grande é o alcance da busca, não o tamanho da corrente: para contar julgados sobre a tese use "
+                      "`grupos`, que exige um termo de cada.\n")
     out.append("Próximo passo: `obter_inteiro_teor_tjse(numero_acordao=…)` no que interessar (lê o voto, fixa órgão e data pelo "
                "fecho); antes de aspas, `verificar_citacao_tjse`.")
     return "\n".join(out) + rodape
@@ -1681,8 +1724,9 @@ def mapa_citacoes(referencia: str | None = None, limite: int = 15) -> str:
                 "'Jurisprudência relevante citada' das ementas. Rode `diagnostico_tjse`.")
     limite = max(3, min(int(limite or 15), 50))
     if not referencia:
-        qual = con.execute("SELECT ref, COUNT(DISTINCT origem) k FROM citacoes WHERE tipo='qualificado' "
-                           "GROUP BY ref ORDER BY k DESC LIMIT ?", (limite,)).fetchall()
+        qual = con.execute("""SELECT MAX(ref) ref, COUNT(DISTINCT origem) k FROM citacoes WHERE tipo='qualificado'
+                              GROUP BY CASE WHEN INSTR(ref,'/')>0 THEN SUBSTR(ref,1,INSTR(ref,'/')-1) ELSE ref END
+                              ORDER BY k DESC LIMIT ?""", (limite,)).fetchall()
         lid = con.execute("SELECT ref, COUNT(DISTINCT origem) k FROM citacoes WHERE tipo='tjse' "
                           "GROUP BY ref ORDER BY k DESC LIMIT ?", (limite,)).fetchall()
         dentro = {r["processo"] for r in con.execute("SELECT processo FROM acordaos")}
@@ -1705,14 +1749,15 @@ def mapa_citacoes(referencia: str | None = None, limite: int = 15) -> str:
     if not ref:
         return (f"Não reconheci {referencia!r}. Use 'Tema 1061', 'Súmula 479/STJ', 'IRDR 15', 'SV 47' ou o nº de "
                 "PROCESSO do TJSE (12 dígitos).")
-    tot = con.execute("SELECT COUNT(DISTINCT origem) FROM citacoes WHERE tipo=? AND ref=?", ref).fetchone()[0]
+    tot = con.execute("SELECT COUNT(DISTINCT origem) FROM citacoes WHERE tipo=? AND (ref=? OR ref LIKE ?)",
+                      (ref[0], base_ref(ref[1]), base_ref(ref[1]) + "/%")).fetchone()[0]
     if not tot:
         return (f"Nenhum acórdão do índice cita {ref[1]} — no período coberto ({cobertura(con)}). Isso NÃO significa "
                 "que o TJSE não tenha aplicado: o grafo só vê o campo 'Jurisprudência relevante citada', que ~1/3 das "
                 "ementas preenche.")
-    rows = con.execute("SELECT a.acordao, a.processo, a.orgao, a.relator, a.classe, SUBSTR(a.ementa,1,220) e "
-                       "FROM citacoes c JOIN acordaos a ON a.acordao=c.origem WHERE c.tipo=? AND c.ref=? "
-                       "ORDER BY a.edicao DESC LIMIT ?", (ref[0], ref[1], limite)).fetchall()
+    rows = con.execute("SELECT DISTINCT a.acordao, a.processo, a.orgao, a.relator, a.classe, SUBSTR(a.ementa,1,220) e, a.edicao "
+                       "FROM citacoes c JOIN acordaos a ON a.acordao=c.origem WHERE c.tipo=? AND (c.ref=? OR c.ref LIKE ?) "
+                       "ORDER BY a.edicao DESC LIMIT ?", (ref[0], base_ref(ref[1]), base_ref(ref[1]) + "/%", limite)).fetchall()
     out = [f"{tot} acórdão(s) do índice citam {ref[1]} (mostrando {len(rows)}):"]
     for r in rows:
         out.append(f"■ Acórdão {r['acordao']} · processo {r['processo']} · {r['classe']}\n  {r['orgao']} · {r['relator']}\n"

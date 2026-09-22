@@ -1,0 +1,217 @@
+{
+  "t1_bancario_idoso_analfabeto": {
+    "original": {
+      "total_retornado": 98,
+      "recall@10": 0.05555555555555555,
+      "recall@50": 0.3333333333333333,
+      "recall_total": 0.4444444444444444,
+      "perdidos": [
+        "202620093",
+        "202627962",
+        "202628034",
+        "202630290",
+        "202630444",
+        "202631590",
+        "202631626",
+        "202631649",
+        "202640450",
+        "202642019"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 5
+    },
+    "enriquecido": {
+      "total_retornado": 200,
+      "recall@10": 0.05555555555555555,
+      "recall@50": 0.2777777777777778,
+      "recall_total": 0.5555555555555556,
+      "perdidos": [
+        "202620093",
+        "202627962",
+        "202628034",
+        "202630290",
+        "202630444",
+        "202631590",
+        "202631649",
+        "202640450"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 14
+    }
+  },
+  "t2_plano_saude_autismo": {
+    "original": {
+      "total_retornado": 122,
+      "recall@10": 0.06666666666666667,
+      "recall@50": 0.4,
+      "recall_total": 0.8,
+      "perdidos": [
+        "202627175",
+        "202630202",
+        "202630316"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 3
+    },
+    "enriquecido": {
+      "total_retornado": 200,
+      "recall@10": 0.2,
+      "recall@50": 0.4666666666666667,
+      "recall_total": 0.8,
+      "perdidos": [
+        "202627175",
+        "202630202",
+        "202630316"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 10
+    }
+  },
+  "t3_cartao_consignado_rmc": {
+    "original": {
+      "total_retornado": 177,
+      "recall@10": 0.0,
+      "recall@50": 0.1111111111111111,
+      "recall_total": 0.3888888888888889,
+      "perdidos": [
+        "202626590",
+        "202626737",
+        "202627006",
+        "202627682",
+        "202627718",
+        "202627809",
+        "202628695",
+        "202629275",
+        "202629277",
+        "202641877",
+        "202642176"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 5
+    },
+    "enriquecido": {
+      "total_retornado": 200,
+      "recall@10": 0.05555555555555555,
+      "recall@50": 0.1111111111111111,
+      "recall_total": 0.3333333333333333,
+      "perdidos": [
+        "202626590",
+        "202626737",
+        "202627006",
+        "202627682",
+        "202627718",
+        "202627809",
+        "202628695",
+        "202629208",
+        "202629275",
+        "202629277",
+        "202641877",
+        "202642176"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 12
+    }
+  },
+  "t4_negativacao_dano_moral": {
+    "original": {
+      "total_retornado": 200,
+      "recall@10": 0.05555555555555555,
+      "recall@50": 0.1111111111111111,
+      "recall_total": 0.5,
+      "perdidos": [
+        "202626707",
+        "202627052",
+        "202627708",
+        "202628613",
+        "202629205",
+        "202630098",
+        "202639992",
+        "202640362",
+        "202640407"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 6
+    },
+    "enriquecido": {
+      "total_retornado": 200,
+      "recall@10": 0.0,
+      "recall@50": 0.2777777777777778,
+      "recall_total": 0.5555555555555556,
+      "perdidos": [
+        "202626707",
+        "202627052",
+        "202627708",
+        "202628613",
+        "202629205",
+        "202630098",
+        "202639992",
+        "202640407"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 12
+    }
+  },
+  "t5_responsabilidade_civil_estado": {
+    "original": {
+      "total_retornado": 22,
+      "recall@10": 0.35714285714285715,
+      "recall@50": 0.7857142857142857,
+      "recall_total": 0.7857142857142857,
+      "perdidos": [
+        "202623326",
+        "202627081",
+        "202628344"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 6
+    },
+    "enriquecido": {
+      "total_retornado": 39,
+      "recall@10": 0.2857142857142857,
+      "recall@50": 0.8571428571428571,
+      "recall_total": 0.8571428571428571,
+      "perdidos": [
+        "202623326",
+        "202627081"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 15
+    }
+  },
+  "t6_usucapiao": {
+    "original": {
+      "total_retornado": 34,
+      "recall@10": 0.26666666666666666,
+      "recall@50": 0.5333333333333333,
+      "recall_total": 0.5333333333333333,
+      "perdidos": [
+        "202627260",
+        "202627723",
+        "202628302",
+        "202628894",
+        "202639016",
+        "202640644",
+        "202642126"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 2
+    },
+    "enriquecido": {
+      "total_retornado": 34,
+      "recall@10": 0.26666666666666666,
+      "recall@50": 0.5333333333333333,
+      "recall_total": 0.5333333333333333,
+      "perdidos": [
+        "202627260",
+        "202627723",
+        "202628302",
+        "202628894",
+        "202639016",
+        "202640644",
+        "202642126"
+      ],
+      "erro": null,
+      "n_termos_grupo_destino": 11
+    }
+  }
+}

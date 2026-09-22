@@ -103,3 +103,23 @@
   A busca ficou 3,7× mais rápida no caminho novo (2,8 s → 0,75 s): o gargalo não era a consulta, era o panorama
   normalizando milhões de caracteres — `sem_acento` passou a usar tabela de tradução, cada ementa é normalizada uma
   vez só, e a amostra do panorama caiu de 3.000 para as 800 mais relevantes, que dizem o mesmo sobre a distribuição.
+
+- **v0.7.3 (21/09/2026)** — terceiro red team, sobre o que entrou hoje (`references/red-team-v07/`): 3 ALTA, 5 MÉDIA,
+  2 BAIXA, todos corrigidos com regressão (`RTC*`, selftest em 196 verificações).
+  O pior era meu: **`em="questao,tese"` perdia os acórdãos sem ementa estruturada, e a documentação garantia que não
+  perdia**. Agora o `cabecalho` — que toda ementa tem — entra junto com peso baixo: na medição, 35 → 108 documentos,
+  com o acórdão sem estrutura incluído. Também: "Súmula 297" e "Súmula 297/STJ" eram chaves distintas ENTRE ementas
+  (a dedup só valia dentro de uma), e `cita=` via metade do grafo — 60 chaves partidas, uma delas 21 contra 248;
+  rótulo colado na palavra anterior ("COMPETÊNCIAIII. RAZÕES DE DECIDIR") fazia o campo anterior engolir a seção,
+  em 99 acórdãos; "4. DISPOSITIVO" em algarismo arábico era descartado, em 43; `em=" "` derrubava a busca; `exato`
+  não obrigava nada e as aspas aceitavam flexão; **`_VAZIAS` descartava "agravo", "recurso", "direito" e "não" em
+  silêncio** — "agravo de instrumento" virava busca por "instrumento", e "não" muda o sentido jurídico; e o total do
+  OU era anunciado sem dizer quantos casam todos os termos, o que vira jurimetria falsa numa peça.
+  **Lição de método**: ao remedir, o recall caiu e quase dei como regressão — era o corpus, que dobrou de 8.974 para
+  17.460 no mesmo intervalo. Rodando as duas versões contra o MESMO snapshot, os números são idênticos. Mudar duas
+  variáveis ao mesmo tempo quase produziu a conclusão errada.
+- **Dicionário de sinônimos (`references/vocabulario/`, 16 conceitos, 119 termos)** — construído do próprio corpus e
+  medido: NÃO foi integrado como expansão automática. O ganho é misto — recall total sobe em 3 consultas (t5 79→86 %)
+  e o `recall@10` quase triplica numa (t2 7→20 %), mas cai em outras duas, porque termo genérico ("quantum
+  indenizatório", em 24 % do corpus) sobe ruído ao topo. Fica como REFERÊNCIA para quem monta os `grupos`, que é
+  onde a escolha é informada, e não como expansão cega.
