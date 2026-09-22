@@ -83,7 +83,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.6.2"
+VERSAO = "0.7.0"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -369,7 +369,7 @@ def parse_menu(h: str) -> list[dict[str, Any]]:
     return out
 
 
-PARSER_VERSAO = 8  # mudou o parser → reindexa do HTML bruto em disco, sem rede
+PARSER_VERSAO = 10  # mudou o parser → reindexa do HTML bruto em disco, sem rede
 _RE_LINK_TEOR = re.compile(r"relatorio\.wsp\?(?:tmp\.numprocesso=(\d+)&(?:amp;)?tmp\.numacordao=(\d+)"
                            r"|tmp\.numacordao=(\d+)&(?:amp;)?tmp\.numprocesso=(\d+))")
 # tolerante a grafia do próprio Boletim ("RELATOR ORIGNÁRIO"): "RELAT…" + até 4 palavras + ":"
@@ -432,6 +432,88 @@ def parse_secao(h: str) -> list[dict[str, Any]]:
         itens.append({"acordao": acord, "processo": proc, "classe": classe, "recurso": recurso,
                       "relator": re.sub(r"\s+", " ", relator), "relator_rotulo": rotulo, "ementa": ementa})
     return itens
+
+
+# --------------------------------------------------------------------------- #
+# Ementa estruturada (Res. CNJ): I. caso em exame · II. questão em discussão ·  #
+# III. razões de decidir · IV. dispositivo e tese + tese/legislação/jurisp.     #
+# Medido em 8.974 ementas (21/09/2026): ~2/3 seguem o padrão. O numeral romano  #
+# NÃO é confiável (há "II. RAZÕES DE DECIDIR" e "III. DISPOSITIVO"), o separador#
+# varia (. – -) e há plural: casa-se pelo NOME da seção, na ordem do texto.     #
+# --------------------------------------------------------------------------- #
+CAMPOS_EMENTA = ("cabecalho", "caso", "questao", "razoes", "dispositivo", "tese", "legislacao", "juris_citada")
+_SECOES_EMENTA = [
+    ("caso", r"caso em exame"),
+    ("questao", r"quest(?:[aã]o|[õo]es) em discuss[aã]o"),
+    ("razoes", r"raz[oõ]es de decidir"),
+    ("dispositivo", r"dispositivo(?:\s+e\s+tese)?"),
+]
+# O Boletim cola o conteúdo no rótulo de três formas: "CASO EM EXAME:RECURSO", "CASO EM EXAME1. AGRAVO" e
+# "CASO EM EXAMEAGRAVO INTERNO" (sem separador algum). Então o separador é pontuação, espaço, dígito ou letra
+# maiúscula — na prática, opcional. Isso só é seguro porque os rótulos são expressões longas e distintivas; o
+# "dispositivo", que é palavra comum de ementa, exige numeral romano ou "e tese" (ver campos_da_ementa).
+_RE_SECAO = re.compile(r"(?i)(?:^|[\s.;:])(?P<num>[ivx]{1,4}\s*[.\-–—)]?\s*)?(?P<rot>" + "|".join(p for _, p in _SECOES_EMENTA)
+                       + r")(?:\s*[.:\-–—]\s*|\s+|(?=[\dA-ZÀ-Ý]))")
+_SUBCAMPOS = [
+    ("tese", r"teses?\s+de\s+julgamento"),
+    ("legislacao", r"(?:dispositivos?|legisla[çc][aã]o)\s+relevantes?\s+citad[oa]s?"),
+    ("juris_citada", r"jurisprud[eê]ncia\s+relevante\s+citada"),
+]
+_RE_SUBCAMPO = re.compile(r"(?i)\b(" + "|".join(p for _, p in _SUBCAMPOS) + r")(?:\s*[.:\-–—]\s*|\s+)")
+
+
+def campos_da_ementa(ementa: str) -> dict[str, str]:
+    """Divide a ementa estruturada. Sem estrutura, tudo vai para `cabecalho` — que é o resumo em caixa alta, o
+    trecho mais denso de qualquer ementa. Assim a busca por campo nunca perde o acórdão não estruturado: ela
+    só deixa de poder distingui-lo."""
+    out = {k: "" for k in CAMPOS_EMENTA}
+    e = ementa or ""
+    marcas, com_num = [], False
+    for m in _RE_SECAO.finditer(e):
+        rot = next(k for k, p in _SECOES_EMENTA if re.fullmatch(p, m.group("rot"), re.I))
+        # "dispositivo" sozinho é palavra comum de ementa ("dispositivo legal", "o dispositivo da sentença"): só vale
+        # como seção com o numeral romano antes ou "e tese" depois. Os outros três rótulos são distintivos por si.
+        if rot == "dispositivo" and not m.group("num") and not re.search(r"(?i)e\s+tese", m.group("rot")):
+            continue
+        marcas.append((rot, m.start("rot"), m.end(), bool(m.group("num"))))
+        com_num = com_num or bool(m.group("num"))
+    # "a questão em discussão nos autos" no meio de uma frase também casa. Quando ALGUMA marca veio com numeral
+    # romano, só as com numeral valem: são os títulos de seção de verdade.
+    if com_num:
+        marcas = [x for x in marcas if x[3]]
+    marcas = [x for i, x in enumerate(marcas) if i == 0 or x[0] != marcas[i - 1][0]]
+    out["cabecalho"] = (e[: marcas[0][1]] if marcas else e).strip(" .;:-–—")
+    for i, (rot, _, fim, _n) in enumerate(marcas):
+        trecho = e[fim: marcas[i + 1][1] if i + 1 < len(marcas) else len(e)].strip()
+        if len(trecho) > len(out[rot]):  # rótulo repetido: fica a ocorrência com mais conteúdo
+            out[rot] = trecho
+    base = out["dispositivo"] or out["cabecalho"]
+    subs = [(next(k for k, p in _SUBCAMPOS if re.fullmatch(p, m.group(1), re.I)), m.start(1), m.end())
+            for m in _RE_SUBCAMPO.finditer(base)]
+    for i, (rot, ini, fim) in enumerate(subs):
+        out[rot] = base[fim: subs[i + 1][1] if i + 1 < len(subs) else len(base)].strip()
+    if subs:
+        cortado = base[: subs[0][1]].strip()
+        if out["dispositivo"]:
+            out["dispositivo"] = cortado
+    return out
+
+
+_RE_PROC_TJSE = re.compile(r"\b((?:19|20)\d{10})\b")
+
+
+def citacoes_da_ementa(campos: dict[str, str], ementa: str) -> list[tuple[str, str]]:
+    """[(tipo, ref)] — o grafo vem do campo "Jurisprudência relevante citada" da ementa estruturada, que o próprio
+    tribunal preenche, mais as âncoras (súmula/tema/IRDR/IAC) de toda a ementa. Não precisa do inteiro teor."""
+    out = set()
+    jc = campos.get("juris_citada") or ""
+    # processo do próprio TJSE citado: só dentro do campo de jurisprudência, e só quando "TJSE" aparece antes — no
+    # resto da ementa, 12 dígitos é quase sempre o número do contrato ou do benefício.
+    for m in re.finditer(r"(?i)tjse[^;]{0,160}?" + _RE_PROC_TJSE.pattern, jc):
+        out.add(("tjse", m.group(1)))
+    for a in ancoras(ementa, 20):
+        out.add(("qualificado", a))
+    return sorted(out)
 
 
 def anomalias_secao(itens: list[dict[str, Any]]) -> list[str]:
@@ -498,6 +580,14 @@ def _db() -> sqlite3.Connection:
                                         relator TEXT, relator_rotulo TEXT, orgao TEXT, edicao INTEGER, ementa TEXT);
     CREATE TABLE IF NOT EXISTS meta(chave TEXT PRIMARY KEY, valor TEXT);
     CREATE VIRTUAL TABLE IF NOT EXISTS fts_vocab USING fts5vocab(fts, 'row');
+    CREATE TABLE IF NOT EXISTS campos(acordao TEXT PRIMARY KEY, cabecalho TEXT, caso TEXT, questao TEXT, razoes TEXT,
+                                      dispositivo TEXT, tese TEXT, legislacao TEXT, juris_citada TEXT);
+    CREATE VIRTUAL TABLE IF NOT EXISTS fts_campos USING fts5(acordao UNINDEXED, cabecalho, caso, questao, razoes,
+                                      dispositivo, tese, tokenize="unicode61 remove_diacritics 2");
+    -- grafo: quem o acórdão CITA. `tjse` = processo de 12 dígitos do próprio tribunal (a maioria fora do índice,
+    -- porque é julgado anterior à janela sincronizada); `qualificado` = súmula, tema, IRDR, IAC, SV.
+    CREATE TABLE IF NOT EXISTS citacoes(origem TEXT, tipo TEXT, ref TEXT, PRIMARY KEY(origem, tipo, ref));
+    CREATE INDEX IF NOT EXISTS ix_cit_ref ON citacoes(tipo, ref);
     CREATE TABLE IF NOT EXISTS republicacoes(acordao TEXT, edicao INTEGER, ementa TEXT, PRIMARY KEY(acordao, edicao));
     CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(acordao UNINDEXED, ementa, classe, relator,
                                                       tokenize="unicode61 remove_diacritics 2");
@@ -558,7 +648,9 @@ def guardar_bruto(edicao: int, codigo: int, h: str, pagina: int = 1) -> None:
 
 
 def _apagar_secao(con: sqlite3.Connection, edicao: int, nome: str) -> None:
-    con.execute("DELETE FROM fts WHERE acordao IN (SELECT acordao FROM acordaos WHERE edicao=? AND orgao=?)", (edicao, nome))
+    alvo = "SELECT acordao FROM acordaos WHERE edicao=? AND orgao=?"
+    for t, col in (("fts", "acordao"), ("campos", "acordao"), ("fts_campos", "acordao"), ("citacoes", "origem")):
+        con.execute(f"DELETE FROM {t} WHERE {col} IN ({alvo})", (edicao, nome))
     con.execute("DELETE FROM acordaos WHERE edicao=? AND orgao=?", (edicao, nome))
 
 
@@ -590,8 +682,8 @@ def indexar_secao(con: sqlite3.Connection, edicao: int, codigo: int, nome: str, 
             con.execute("INSERT OR REPLACE INTO republicacoes VALUES(?,?,?)", (it["acordao"], edicao, it["ementa"]))
             continue
         if ja:
-            con.execute("DELETE FROM fts WHERE acordao=?", (it["acordao"],))
-            con.execute("DELETE FROM acordaos WHERE acordao=?", (it["acordao"],))
+            for t in ("fts", "acordaos", "campos", "fts_campos", "citacoes"):
+                con.execute(f"DELETE FROM {t} WHERE {'origem' if t == 'citacoes' else 'acordao'}=?", (it["acordao"],))
         else:
             novos += 1
         con.execute("INSERT INTO acordaos VALUES(?,?,?,?,?,?,?,?,?)",
@@ -599,6 +691,14 @@ def indexar_secao(con: sqlite3.Connection, edicao: int, codigo: int, nome: str, 
                      it["relator_rotulo"], nome, edicao, it["ementa"]))
         con.execute("INSERT INTO fts(acordao, ementa, classe, relator) VALUES(?,?,?,?)",
                     (it["acordao"], it["ementa"], it["classe"], it["relator"]))
+        cps = campos_da_ementa(it["ementa"])
+        con.execute("INSERT OR REPLACE INTO campos VALUES(?,?,?,?,?,?,?,?,?)",
+                    tuple([it["acordao"]] + [cps[k] for k in CAMPOS_EMENTA]))
+        con.execute("INSERT INTO fts_campos(acordao, cabecalho, caso, questao, razoes, dispositivo, tese) "
+                    "VALUES(?,?,?,?,?,?,?)", (it["acordao"], cps["cabecalho"], cps["caso"], cps["questao"],
+                                              cps["razoes"], cps["dispositivo"], cps["tese"]))
+        for tipo, ref in citacoes_da_ementa(cps, it["ementa"]):
+            con.execute("INSERT OR IGNORE INTO citacoes VALUES(?,?,?)", (it["acordao"], tipo, ref))
     con.execute("INSERT OR REPLACE INTO secoes VALUES(?,?,?,?,?)",
                 (edicao, codigo, nome, len(itens), _dt.datetime.now().isoformat(timespec="seconds")))
     if _commit:
@@ -733,19 +833,32 @@ def resultado_declarado(ementa: str) -> str | None:
     return next(iter(achou)) if len(achou) == 1 else None
 
 
+_RE_TRIB_ANTES = re.compile(r"(?i)\b(STJ|STF|TJSE|TST|TNU)\b[^.;]{0,12}$")
+
+
 def ancoras(texto: str, max_itens: int = 6) -> list[str]:
+    """Precedentes qualificados citados. O tribunal pode vir DEPOIS ("Súmula 297/STJ") ou ANTES ("STJ, Súmula 297"):
+    as duas formas têm de virar a MESMA chave, senão o grafo conta a mesma súmula duas vezes."""
+    t = str(texto or "")
     achado: dict[str, int] = {}
     for rx, molde in _RE_ANCORAS:
-        for m in rx.finditer(str(texto or "")):
+        for m in rx.finditer(t):
             n = m.group(1).replace(".", "")
             if not n or n == "0":
                 continue
             nome = molde % n
-            if m.lastindex and m.lastindex >= 2 and m.group(2):
-                nome += f"/{m.group(2).upper()}"
+            trib = m.group(2) if (m.lastindex and m.lastindex >= 2 and m.group(2)) else None
+            if not trib:
+                antes = _RE_TRIB_ANTES.search(t[max(0, m.start() - 30): m.start()])
+                trib = antes.group(1) if antes else None
+            if trib and not nome.startswith("Tema") and not nome.startswith("IRDR") and not nome.startswith("IAC"):
+                nome += f"/{trib.upper()}"
             if nome.startswith("Súmula ") and f"Súmula Vinculante {n}" in achado:
                 continue
             achado.setdefault(nome, m.start())
+    # "Súmula 297" e "Súmula 297/STJ" no mesmo texto são a mesma coisa: fica a forma com tribunal
+    for k in [x for x in achado if "/" in x]:
+        achado.pop(k.split("/")[0], None)
     return [n for n, _ in sorted(achado.items(), key=lambda kv: kv[1])][:max_itens]
 
 
@@ -1194,10 +1307,10 @@ def _grava_meta(con: sqlite3.Connection, chave: str, valor: str) -> None:
 def buscar(consulta: str | None = None, grupos: list[list[str]] | None = None, orgao: str | None = None,
            classe: str | None = None, relator: str | None = None, numero: str | None = None,
            por_pagina: int = 10, pagina: int = 1, data_inicio: str | None = None, data_fim: str | None = None,
-           ordenacao: str = "relevantes", exato: bool = False) -> str:
+           ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo", cita: str | None = None) -> str:
     try:
         return _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-                       ordenacao, exato)
+                       ordenacao, exato, em, cita)
     except Exception as ex:
         return (f"BUSCA NÃO REALIZADA — erro do índice local ({type(ex).__name__}: {ex}). Isto NÃO é 'nada encontrado': "
                 "reformule sem pontuação especial ou rode `diagnostico_tjse`.")
@@ -1217,8 +1330,21 @@ def _data_iso(v: str | None, rotulo: str) -> str | None:
     return _dt.date(int(a), int(me), int(d)).isoformat()
 
 
+CAMPOS_BUSCAVEIS = ("cabecalho", "caso", "questao", "razoes", "dispositivo", "tese")
+_PESO_CAMPO = {"cabecalho": 3.0, "caso": 1.0, "questao": 5.0, "razoes": 2.0, "dispositivo": 1.0, "tese": 5.0}
+
+
+def _ref_citada(cita: str) -> tuple[str, str] | None:
+    """Normaliza o que o usuário pediu em `cita` para a chave do grafo."""
+    dig = re.sub(r"\D", "", cita or "")
+    if len(dig) == 12:
+        return ("tjse", dig)
+    a = ancoras(cita or "", 1)
+    return ("qualificado", a[0]) if a else None
+
+
 def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-            ordenacao, exato) -> str:
+            ordenacao, exato, em="tudo", cita=None) -> str:
     con = _db()
     cab = f"Índice local do Boletim Jurídico do TJSE: {cobertura(con)}.\n"
     rodape = ("\nLIMITES: só 2º grau publicado no Boletim — sem Turmas Recursais, Turma de Uniformização nem monocráticas, e só "
@@ -1240,11 +1366,32 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
             raise ValueError(f"`data_inicio` ({br(di)}) é posterior a `data_fim` ({br(df)}) — filtro impossível, não ausência de julgado")
     except ValueError as ex:
         return f"Consulta recusada: {ex}"
-    if not q and not numero:
-        return "Informe `consulta`, `grupos` ou `numero`."
+    if not q and not numero and not cita:
+        return "Informe `consulta`, `grupos`, `numero` ou `cita`."
+    campos_pedidos = [c.strip().lower() for c in re.split(r"[,;+ ]+", em or "tudo") if c.strip()]
+    if campos_pedidos == ["tudo"]:
+        tab_fts, q_fts, pesos = "fts", q, "0, 5.0, 2.0, 1.0"
+    else:
+        ruins = [c for c in campos_pedidos if c not in CAMPOS_BUSCAVEIS]
+        if ruins:
+            return (f"`em` não conhece {ruins}. Use 'tudo' ou um ou mais de: {', '.join(CAMPOS_BUSCAVEIS)} "
+                    "(são as partes da ementa estruturada; ~2/3 dos acórdãos a seguem — nos demais tudo está em "
+                    "`cabecalho`, então busca por campo NÃO perde acórdão, só deixa de distingui-lo).")
+        tab_fts = "fts_campos"
+        q_fts = "{" + " ".join(campos_pedidos) + "} : (" + (q or "") + ")" if q else q
+        pesos = "0, " + ", ".join(str(_PESO_CAMPO[c] if c in campos_pedidos else 0.0) for c in CAMPOS_BUSCAVEIS)
+    if cita:
+        ref = _ref_citada(cita)
+        if not ref:
+            return (f"`cita`={cita!r} não é uma referência que o grafo conheça. Use 'Tema 1061', 'Súmula 479/STJ', "
+                    "'IRDR 15', 'SV 47' ou o nº de PROCESSO do TJSE (12 dígitos).")
+        where.append("a.acordao IN (SELECT origem FROM citacoes WHERE tipo=? AND ref=?)"); args += [ref[0], ref[1]]
+        filtros_cita = f"cita={ref[1]}"
+    else:
+        filtros_cita = ""
     por_bm25 = bool(q) and ordenacao == "relevantes"
     if q and not por_bm25:  # com bm25 o MATCH já está na subconsulta: não varrer o FTS duas vezes
-        where.append("a.acordao IN (SELECT acordao FROM fts WHERE fts MATCH ?)"); args.append(q)
+        where.append(f"a.acordao IN (SELECT acordao FROM {tab_fts} WHERE {tab_fts} MATCH ?)"); args.append(q_fts)
     for col, val in (("orgao", orgao), ("classe", classe), ("relator", relator)):
         if val:
             esc = val.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -1254,12 +1401,12 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     if df:
         where.append("e.data <= ?"); args.append(df)
     filtros = [f"{k}={v!r}" for k, v in (("orgao", orgao), ("classe", classe), ("relator", relator), ("numero", numero),
-                                         ("data_inicio", data_inicio), ("data_fim", data_fim)) if v]
+                                         ("data_inicio", data_inicio), ("data_fim", data_fim), ("cita", cita)) if v]
     cond = " AND ".join(where) or "1=1"
     if por_bm25:
-        base = ("(SELECT acordao ac, bm25(fts, 0, 5.0, 2.0, 1.0) rk FROM fts WHERE fts MATCH ?) r JOIN acordaos a ON a.acordao = r.ac "
-                "JOIN edicoes e USING(edicao)")
-        args = [q] + args
+        base = (f"(SELECT acordao ac, bm25({tab_fts}, {pesos}) rk FROM {tab_fts} WHERE {tab_fts} MATCH ?) r "
+                "JOIN acordaos a ON a.acordao = r.ac JOIN edicoes e USING(edicao)")
+        args = [q_fts] + args
     else:
         base = "acordaos a JOIN edicoes e USING(edicao)"
     sql = f" FROM {base} WHERE {cond}"
@@ -1283,31 +1430,36 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     if not rows:
         sem_filtro = ""
         if q and filtros:
-            n0 = con.execute("SELECT COUNT(*) FROM fts WHERE fts MATCH ?", (q,)).fetchone()[0]
+            n0 = con.execute(f"SELECT COUNT(*) FROM {tab_fts} WHERE {tab_fts} MATCH ?", (q_fts,)).fetchone()[0]
             sem_filtro = (f" SEM os filtros ({', '.join(filtros)}) a mesma expressão tem {n0} resultado(s) — foi o filtro que zerou, "
                           "não a falta de julgado." if n0 else "")
         return cab + f"Nada no índice local para {q or numero!r}{filtro_data}.{sem_filtro}" + (diagnostico_zero(con, partes) if q else "") + rodape
     termos = [norm(t) for g in (grupos or []) for t in g]
     termos += [norm(a or b) for a, b in re.findall(r'"([^"]+)"|(\S+)', consulta or "")]
-    out = [cab + f"{total} resultado(s) — página {max(1, pagina)} ({por_pagina}/pág.) — ordem: {ordenacao}{filtro_data}\n"
+    out = [cab + f"{total} resultado(s) — página {max(1, pagina)} ({por_pagina}/pág.) — ordem: {ordenacao}{filtro_data}"
+           + (f" · campo: {'+'.join(campos_pedidos)}" if campos_pedidos != ["tudo"] else "")
+           + (f" · {filtros_cita}" if filtros_cita else "") + "\n"
            f"expressão{'' if exato else ' (com variação singular/plural; `exato=true` desliga)'}: "
            f"{q if len(q) < 700 else q[:700] + '…'}\n"]
     if pagina == 1 and total >= 5:
         excl = set(re.findall(r"[a-z]{5,}", q))  # a própria consulta e suas variantes não são "pista"
         out.append(panorama(con, sql, args, por_bm25, total, excl))
     for r in rows:
-        em = r["ementa"]
-        en = norm(em)
+        em_txt = r["ementa"]
+        en = norm(em_txt)
         p = min([en.find(t.rstrip("$*")) for t in termos if en.find(t.rstrip("$*")) >= 0] or [0])
-        trecho = em if len(em) <= 900 else ("…" if p > 200 else "") + em[max(0, p - 200): max(0, p - 200) + 900] + "…"
+        trecho = em_txt if len(em_txt) <= 900 else ("…" if p > 200 else "") + em_txt[max(0, p - 200): max(0, p - 200) + 900] + "…"
         link = f"{URL_TEOR}?tmp.numprocesso={r['processo']}&tmp.numacordao={r['acordao']}"
         rec = " · recibo do inteiro teor já em disco" if ler_recibo(r["acordao"]) else ""
         rep_ = [x[0] for x in con.execute("SELECT edicao FROM republicacoes WHERE acordao=?", (r["acordao"],))]
         if rep_:
             rec += f"\n  ⚠ REPUBLICADO na(s) edição(ões) {rep_} — pode haver retificação de ementa: confira no inteiro teor"
-        cita = ancoras(em)
+        cita_ = ancoras(em_txt)
         outros = outros_acordaos_do_processo(con, r["processo"], r["acordao"])
-        rec += ("\n  Cita: " + " · ".join(cita)) if cita else ""
+        aut = con.execute("SELECT COUNT(DISTINCT origem) FROM citacoes WHERE tipo='tjse' AND ref=?", (r["processo"],)).fetchone()[0]
+        rec += ("\n  Cita: " + " · ".join(cita_)) if cita_ else ""
+        rec += (f"\n  ⬆ CITADO por {aut} acórdão(s) deste índice — autoridade interna: julgado que a própria câmara "
+                "reusa" if aut else "")
         rec += ("\n  " + outros) if outros else ""
         out.append(f"■ Acórdão {r['acordao']} · processo {r['processo']} · {r['recurso'] or r['classe']}\n"
                    f"  {r['orgao']} (seção do Boletim; o órgão citável é o do FECHO) · {r['relator_rotulo'] or 'Relator'}: {r['relator']}\n"
@@ -1420,6 +1572,57 @@ async def verificar(numero_acordao: str, trecho: str, numero_processo: str | Non
             + f"Contexto (normalizado): …{r['contexto']}…\nCitação: {citacao(d, orgao, rec['url'], 'inteiro teor lido')}")
 
 
+def mapa_citacoes(referencia: str | None = None, limite: int = 15) -> str:
+    """Sem `referencia`: o que o recorte mais cita. Com: quem cita aquilo."""
+    con = _db()
+    n = con.execute("SELECT COUNT(*) FROM citacoes").fetchone()[0]
+    if not n:
+        return ("O grafo de citações está vazio — o índice precisa ser (re)sincronizado para extrair o campo "
+                "'Jurisprudência relevante citada' das ementas. Rode `diagnostico_tjse`.")
+    limite = max(3, min(int(limite or 15), 50))
+    if not referencia:
+        qual = con.execute("SELECT ref, COUNT(DISTINCT origem) k FROM citacoes WHERE tipo='qualificado' "
+                           "GROUP BY ref ORDER BY k DESC LIMIT ?", (limite,)).fetchall()
+        lid = con.execute("SELECT ref, COUNT(DISTINCT origem) k FROM citacoes WHERE tipo='tjse' "
+                          "GROUP BY ref ORDER BY k DESC LIMIT ?", (limite,)).fetchall()
+        dentro = {r["processo"] for r in con.execute("SELECT processo FROM acordaos")}
+        linhas = [f"Grafo de citações do índice ({n} arestas, extraídas das ementas — zero rede).",
+                  "\nPrecedentes QUALIFICADOS mais citados (súmula, tema, IRDR, IAC):"]
+        linhas += [f"  {r['ref']}: {r['k']} acórdão(s)" for r in qual] or ["  —"]
+        linhas.append("\nAcórdãos do próprio TJSE mais citados pelos pares (candidatos a julgado-líder):")
+        for r in lid:
+            onde = "no índice" if r["ref"] in dentro else "FORA do índice (anterior ao período sincronizado)"
+            linhas.append(f"  processo {r['ref']}: citado por {r['k']} — {onde}")
+        fora = con.execute("SELECT COUNT(DISTINCT ref) FROM citacoes WHERE tipo='tjse' AND ref NOT IN "
+                           "(SELECT processo FROM acordaos)").fetchone()[0]
+        linhas.append(f"\n{fora} processo(s) do TJSE são citados pelos acórdãos do índice mas estão FORA dele (julgados "
+                      "anteriores ao período sincronizado): o grafo enxerga além da janela, mas para LER cada um é "
+                      "preciso o nº do ACÓRDÃO (9 dígitos), que a ementa citante não traz — busque-o na base que você "
+                      "assinar, ou no portal oficial, e confira aqui com `obter_inteiro_teor_tjse`.")
+        linhas.append("Para ver quem cita um deles: `mapa_de_citacoes_tjse(referencia='Tema 1061')` ou o nº do processo.")
+        return "\n".join(linhas)
+    ref = _ref_citada(referencia)
+    if not ref:
+        return (f"Não reconheci {referencia!r}. Use 'Tema 1061', 'Súmula 479/STJ', 'IRDR 15', 'SV 47' ou o nº de "
+                "PROCESSO do TJSE (12 dígitos).")
+    tot = con.execute("SELECT COUNT(DISTINCT origem) FROM citacoes WHERE tipo=? AND ref=?", ref).fetchone()[0]
+    if not tot:
+        return (f"Nenhum acórdão do índice cita {ref[1]} — no período coberto ({cobertura(con)}). Isso NÃO significa "
+                "que o TJSE não tenha aplicado: o grafo só vê o campo 'Jurisprudência relevante citada', que ~1/3 das "
+                "ementas preenche.")
+    rows = con.execute("SELECT a.acordao, a.processo, a.orgao, a.relator, a.classe, SUBSTR(a.ementa,1,220) e "
+                       "FROM citacoes c JOIN acordaos a ON a.acordao=c.origem WHERE c.tipo=? AND c.ref=? "
+                       "ORDER BY a.edicao DESC LIMIT ?", (ref[0], ref[1], limite)).fetchall()
+    out = [f"{tot} acórdão(s) do índice citam {ref[1]} (mostrando {len(rows)}):"]
+    for r in rows:
+        out.append(f"■ Acórdão {r['acordao']} · processo {r['processo']} · {r['classe']}\n  {r['orgao']} · {r['relator']}\n"
+                   f"  {re.sub(chr(92) + 's+', ' ', r['e'])}…\n  Inteiro teor: {URL_TEOR}?tmp.numprocesso={r['processo']}"
+                   f"&tmp.numacordao={r['acordao']}")
+    out.append("\nO campo 'Jurisprudência relevante citada' existe em ~1/3 das ementas: quem não o preenche não aparece "
+               "aqui, ainda que aplique o mesmo precedente. Para esses, use `buscar_jurisprudencia_tjse`.")
+    return "\n".join(out)
+
+
 def diagnostico() -> str:
     try:
         return _diagnostico()
@@ -1447,12 +1650,15 @@ def _diagnostico() -> str:
         """SELECT e.edicao, e.data FROM edicoes e WHERE e.edicao BETWEEN (SELECT MIN(edicao) FROM secoes) AND
            (SELECT MAX(edicao) FROM secoes) AND (SELECT COUNT(*) FROM secoes s WHERE s.edicao=e.edicao) < 5""")]
     mb = os.path.getsize(ARQ_DB) / 1e6 if os.path.exists(ARQ_DB) else 0
+    n_cit = con.execute("SELECT COUNT(*) FROM citacoes").fetchone()[0]
+    n_proc_cit = con.execute("SELECT COUNT(DISTINCT ref) FROM citacoes WHERE tipo='tjse'").fetchone()[0]
     inc = "\n".join(f"  {i['quando']} — {i['motivo']}" for i in e.get("incidentes", [])[-8:]) or "  nenhum"
     return (f"tjse_jurisprudencia v{VERSAO} (sem rede nesta chamada)\n"
             f"Disjuntor: {'EM PAUSA por ~%d min — %s' % (pausa / 60 + 1, e.get('motivo')) if pausa > 0 else 'livre'}\n"
             f"Requisições: {len([t for t in reqs if agora - t < JANELA_S])}/{JANELA_MAX} em 10 min · {len(reqs)}/{DIA_MAX} em 24 h · "
             f"espaçamento {ESPACAMENTO_S:.0f} s\nÍndice ({mb:.1f} MB, parser v{PARSER_VERSAO}): {cobertura(con)}\nPor seção:\n{por_secao}\n"
             + (f"⚠ Edições INCOMPLETAS dentro do intervalo coberto: {', '.join(buracos)} — sincronize antes de confiar em zero resultado.\n" if buracos else "")
+            + f"Grafo de citações: {n_cit} arestas ({n_proc_cit} processos do TJSE citados)\n"
             + f"Recibos de inteiro teor: {n_rec}\nIncidentes:\n{inc}\n"
             f"Modo: {'híbrido — complementos declarados: ' + ', '.join(COMPLEMENTOS) if COMPLEMENTOS else 'autônomo (TJSE_COMPLEMENTOS vazio)'} · "
             f"User-Agent: {'definido por TJSE_USER_AGENT' if os.environ.get('TJSE_USER_AGENT') else 'padrão (identificado)'}\n"
@@ -1480,7 +1686,8 @@ def _servidor():
                                    orgao: str | None = None, classe: str | None = None, relator: str | None = None,
                                    numero: str | None = None, por_pagina: int = 10, pagina: int = 1,
                                    data_inicio: str | None = None, data_fim: str | None = None,
-                                   ordenacao: str = "relevantes", exato: bool = False) -> str:
+                                   ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo",
+                                   cita: str | None = None) -> str:
         """Busca acórdãos de 2º grau do TJSE no ÍNDICE LOCAL do Boletim Jurídico (zero rede). Sem acento e sem caixa.
         `grupos`=[["dano moral"],["negativação","inscrição indevida"]] → E entre grupos, OU dentro; termo com `$`
         no fim é radical (`consign$`). `consulta` livre: palavras e "frases" em E (operador em caixa alta é recusado).
@@ -1488,10 +1695,14 @@ def _servidor():
         Filtros: `orgao` (ex. "1ª Câmara Cível"), `classe`, `relator`, `numero` (processo de 12 dígitos ou acórdão de 9),
         `data_inicio`/`data_fim` (dd/mm/aaaa — data de PUBLICAÇÃO do Boletim; o julgamento é do mês anterior).
         `ordenacao`: relevantes (bm25, padrão) | recentes | antigos.
+        `em` busca só numa parte da ementa estruturada (padrão CNJ, ~2/3 dos acórdãos): `questao` (a pergunta que o
+        tribunal se põe), `tese` (a tese de julgamento), `razoes`, `caso`, `dispositivo`, `cabecalho` — vale combinar
+        ("questao,tese"). Quem não segue o padrão tem tudo em `cabecalho`, então buscar por campo não perde acórdão.
+        `cita` filtra pelo que o acórdão CITA: "Tema 1061", "Súmula 479/STJ", "IRDR 15" ou nº de processo do TJSE.
         Cobre só as edições sincronizadas (a saída diz quais) e NÃO cobre Turmas Recursais nem monocráticas: zero
         resultado aqui nunca é 'não localizado no TJSE'. Resultado é 'só ementa/índice' até `obter_inteiro_teor_tjse`."""
         return buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-                      ordenacao, exato)
+                      ordenacao, exato, em, cita)
 
     @mcp.tool()
     async def obter_inteiro_teor_tjse(numero_acordao: str, numero_processo: str | None = None,
@@ -1512,6 +1723,14 @@ def _servidor():
         sustenta), ENTRE ASPAS (o tribunal citando alguém), NEGAÇÃO (recorte que inverte o julgado): cada um muda A QUEM
         a frase pode ser atribuída. Falha de rede = citação NÃO CONFERIDA, nunca ❌."""
         return await verificar(numero_acordao, trecho, numero_processo)
+
+    @mcp.tool()
+    def mapa_de_citacoes_tjse(referencia: str | None = None, limite: int = 15) -> str:
+        """Grafo de citações do índice, montado do campo "Jurisprudência relevante citada" das ementas (zero rede).
+        Sem `referencia`: os precedentes qualificados mais citados e os acórdãos do próprio TJSE que as câmaras mais
+        reusam — inclusive ANTERIORES ao período sincronizado, que a busca não alcança. Com `referencia` ("Tema 1061",
+        "Súmula 479/STJ", "IRDR 15" ou nº de processo do TJSE): quais acórdãos do índice citam aquilo."""
+        return mapa_citacoes(referencia, limite)
 
     @mcp.tool()
     def diagnostico_tjse() -> str:

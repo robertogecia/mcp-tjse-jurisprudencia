@@ -68,3 +68,18 @@
   Cível"), e assim o órgão caía no cadastro e a **data de julgamento saía vazia** — ela é lida na janela do fecho.
   `norm_orgao()` passa o ordinal por extenso a algarismo. Os recibos já gravados se atualizam sozinhos, sem rede,
   quando o parser melhora (antes só migravam se faltasse `texto`); parser que falha não atualiza nem destrói o recibo.
+
+- **v0.7.0 (21/09/2026)** — as duas capacidades que a busca por palavra não dá sozinha, ambas medidas sobre as 8.974
+  ementas do índice e sem nenhuma requisição nova ao tribunal:
+  **(1) Ementa estruturada em campos.** 68–69 % dos acórdãos seguem o padrão CNJ; `campos_da_ementa()` separa
+  cabeçalho, caso, questão, razões, dispositivo, tese, legislação e jurisprudência citada. O Boletim cola o conteúdo
+  no rótulo de três formas distintas ("EXAME:RECURSO", "EXAME1. AGRAVO", "EXAMEAGRAVO"), e o numeral romano não é
+  confiável (há "II. RAZÕES DE DECIDIR" e "III. DISPOSITIVO"): casa-se pelo nome da seção, com prioridade para as
+  ocorrências que têm numeral. Busca nova: `em="questao,tese"` — na medição, a mesma consulta caiu de 55 para 5
+  resultados, todos no ponto.
+  **(2) Grafo de citações.** 7.271 arestas tiradas do campo "Jurisprudência relevante citada": 177 acórdãos aplicam o
+  Tema 1.061, 371 o Tema 1.150. E 1.566 processos do próprio TJSE citados que estão FORA do índice — o grafo vê o que
+  a busca não alcança. Filtro `cita=` na busca, ferramenta `mapa_de_citacoes_tjse`, e autoridade interna ("citado por
+  N acórdãos deste índice") na linha de cada resultado. Achado do próprio teste: "Súmula 297" e "Súmula 297/STJ" eram
+  duas chaves para a mesma súmula, contada em dobro; o tribunal agora é reconhecido antes ou depois do número.
+  Reindexação completa dos 8.974 acórdãos a partir do HTML bruto em disco: 6,6 segundos, zero rede.

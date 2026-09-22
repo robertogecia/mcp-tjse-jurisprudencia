@@ -1,0 +1,827 @@
+[
+  {
+    "id": "t1_bancario_idoso_analfabeto",
+    "pergunta": "Como impugnar um contrato bancário (empréstimo, cartão consignado) firmado por consumidor idoso e analfabeto que nega ter contratado?",
+    "termos_advogado": [
+      "idoso",
+      "analfabeto",
+      "empréstimo consignado",
+      "cartão consignado",
+      "contratação impugnada",
+      "assinatura a rogo",
+      "hipervulnerável"
+    ],
+    "itens": [
+      {
+        "acordao": "202640049",
+        "nivel": "essencial",
+        "justificativa": "aposentado rural analfabeto, desconto indevido, vocabulário-alvo direto"
+      },
+      {
+        "acordao": "202640103",
+        "nivel": "essencial",
+        "justificativa": "consumidor idoso e analfabeto, contrato bancário impugnado"
+      },
+      {
+        "acordao": "202631626",
+        "nivel": "essencial",
+        "justificativa": "pessoa idosa e analfabeta, assinatura a rogo, vocabulário fora do óbvio"
+      },
+      {
+        "acordao": "202631655",
+        "nivel": "essencial",
+        "justificativa": "analfabeto, ausência de prova da higidez do consentimento"
+      },
+      {
+        "acordao": "202631590",
+        "nivel": "essencial",
+        "justificativa": "beneficiário do INSS em condição de analfabetismo"
+      },
+      {
+        "acordao": "202632164",
+        "nivel": "essencial",
+        "justificativa": "consumidor idoso e analfabeto, nulidade do negócio jurídico"
+      },
+      {
+        "acordao": "202632489",
+        "nivel": "essencial",
+        "justificativa": "empréstimo consignado para analfabeto, art. 595 CC"
+      },
+      {
+        "acordao": "202627962",
+        "nivel": "essencial",
+        "justificativa": "tarifas bancárias em conta de idoso analfabeto"
+      },
+      {
+        "acordao": "202628034",
+        "nivel": "essencial",
+        "justificativa": "avalista com alegação de analfabetismo e vício de consentimento — vocabulário 'avalista', fato societário diferente (cédula bancária)"
+      },
+      {
+        "acordao": "202640450",
+        "nivel": "essencial",
+        "justificativa": "consumidor analfabeto e hipervulnerável — termo 'hipervulnerável'"
+      },
+      {
+        "acordao": "202627342",
+        "nivel": "essencial",
+        "justificativa": "consumidor idoso hipervulnerável, fraude, impugnação ao contrato"
+      },
+      {
+        "acordao": "202631649",
+        "nivel": "essencial",
+        "justificativa": "consumidor analfabeto em hipervulnerabilidade, tarifas bancárias"
+      },
+      {
+        "acordao": "202630290",
+        "nivel": "essencial",
+        "justificativa": "desconto indevido em benefício de idoso, ausência de autorização expressa"
+      },
+      {
+        "acordao": "202630444",
+        "nivel": "essencial",
+        "justificativa": "responsabilidade civil de instituição financeira por desconto indevido a idoso"
+      },
+      {
+        "acordao": "202631685",
+        "nivel": "essencial",
+        "justificativa": "consumidor idoso, pacote de serviços tarifados em conta de benefício"
+      },
+      {
+        "acordao": "202620093",
+        "nivel": "essencial",
+        "justificativa": "hipervulnerabilidade do consumidor idoso citada na ementa"
+      },
+      {
+        "acordao": "202642019",
+        "nivel": "essencial",
+        "justificativa": "RMC com contratação impugnada e autenticidade não comprovada — mesmo padrão fático, sem citar idoso explicitamente no resumo mas no corpo"
+      },
+      {
+        "acordao": "202632386",
+        "nivel": "essencial",
+        "justificativa": "vocabulário 'avença' no lugar de 'contrato', mesmo padrão fático de inexistência de débito"
+      },
+      {
+        "acordao": "202640009",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202639960",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640029",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640219",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202641907",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202641876",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202641918",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202641987",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202642176",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  },
+  {
+    "id": "t2_plano_saude_autismo",
+    "pergunta": "O plano de saúde pode limitar ou negar cobertura de tratamento multidisciplinar (terapias, método ABA) para paciente com transtorno do espectro autista?",
+    "termos_advogado": [
+      "plano de saúde",
+      "autismo",
+      "TEA",
+      "terapia multidisciplinar",
+      "método ABA",
+      "coparticipação"
+    ],
+    "itens": [
+      {
+        "acordao": "202638478",
+        "nivel": "essencial",
+        "justificativa": "tratamento multidisciplinar de menor com TEA, astreintes em cumprimento de sentença"
+      },
+      {
+        "acordao": "202640036",
+        "nivel": "essencial",
+        "justificativa": "TEA, taxatividade mitigada do rol da ANS, prova pericial"
+      },
+      {
+        "acordao": "202640143",
+        "nivel": "essencial",
+        "justificativa": "TEA, coparticipação em terapias multidisciplinares"
+      },
+      {
+        "acordao": "202642169",
+        "nivel": "essencial",
+        "justificativa": "entidade de autogestão, CDC inaplicável — mesma disputa por outra via jurídica (vocabulário diferente: autogestão)"
+      },
+      {
+        "acordao": "202628871",
+        "nivel": "essencial",
+        "justificativa": "'menor impúbere' em vez de 'criança/menor' — vocabulário fora do óbvio"
+      },
+      {
+        "acordao": "202627748",
+        "nivel": "essencial",
+        "justificativa": "'paciente infante' — vocabulário 'infante' em vez de 'criança'"
+      },
+      {
+        "acordao": "202630316",
+        "nivel": "essencial",
+        "justificativa": "cancelamento unilateral pelo plano de saúde de menor em tratamento de autismo"
+      },
+      {
+        "acordao": "202631605",
+        "nivel": "essencial",
+        "justificativa": "tratamento em clínica não credenciada, descredenciamento"
+      },
+      {
+        "acordao": "202627175",
+        "nivel": "essencial",
+        "justificativa": "cerceamento de defesa, TEA, indeferimento de instrução probatória"
+      },
+      {
+        "acordao": "202627209",
+        "nivel": "essencial",
+        "justificativa": "método ABA, cobertura obrigatória, rede credenciada"
+      },
+      {
+        "acordao": "202629178",
+        "nivel": "essencial",
+        "justificativa": "obrigação de fazer c/c indenização por danos materiais, TEA"
+      },
+      {
+        "acordao": "202626594",
+        "nivel": "essencial",
+        "justificativa": "embargos de declaração, método ABA"
+      },
+      {
+        "acordao": "202630623",
+        "nivel": "essencial",
+        "justificativa": "limites da cobertura assistencial, TEA"
+      },
+      {
+        "acordao": "202632286",
+        "nivel": "essencial",
+        "justificativa": "descredenciamento de clínica, tratamento multidisciplinar TEA"
+      },
+      {
+        "acordao": "202630202",
+        "nivel": "essencial",
+        "justificativa": "contrato coletivo empresarial, nulidade de reajustes — mesma arena (plano de saúde) mas ângulo de reajuste, não de autismo: mantido como essencial por tocar diretamente cobertura/plano de saúde do mesmo núcleo de casos"
+      },
+      {
+        "acordao": "202641901",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640631",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202642667",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202642947",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629329",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629339",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202628865",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629593",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629698",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202620835",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  },
+  {
+    "id": "t3_cartao_consignado_rmc",
+    "pergunta": "Como impugnar contrato de cartão de crédito consignado com reserva de margem consignável (RMC/RCC) que o beneficiário do INSS alega não ter contratado?",
+    "termos_advogado": [
+      "cartão consignado",
+      "RMC",
+      "RCC",
+      "reserva de margem consignável",
+      "contratação impugnada",
+      "INSS"
+    ],
+    "itens": [
+      {
+        "acordao": "202640299",
+        "nivel": "essencial",
+        "justificativa": "cartão de crédito consignado (RMC), inexistência de relação contratual"
+      },
+      {
+        "acordao": "202641877",
+        "nivel": "essencial",
+        "justificativa": "obrigação de fazer c/c indenização, RMC"
+      },
+      {
+        "acordao": "202642019",
+        "nivel": "essencial",
+        "justificativa": "contratação impugnada, autenticidade não comprovada"
+      },
+      {
+        "acordao": "202642176",
+        "nivel": "essencial",
+        "justificativa": "RMC, termo de consentimento eletrônico"
+      },
+      {
+        "acordao": "202642193",
+        "nivel": "essencial",
+        "justificativa": "reserva de margem consignável impugnada por beneficiária do INSS, ausência de prova de liberação do crédito"
+      },
+      {
+        "acordao": "202627154",
+        "nivel": "essencial",
+        "justificativa": "prescrição quinquenal, inaplicabilidade da decadência — mesmo objeto por ângulo processual, vocabulário diferente"
+      },
+      {
+        "acordao": "202628695",
+        "nivel": "essencial",
+        "justificativa": "'cartão benefício consignado (RCC)' — sigla RCC em vez de RMC"
+      },
+      {
+        "acordao": "202628869",
+        "nivel": "essencial",
+        "justificativa": "contrato digital com biometria facial — vocabulário 'biometria facial'"
+      },
+      {
+        "acordao": "202629208",
+        "nivel": "essencial",
+        "justificativa": "comportamento processual contraditório do autor (venire contra factum proprium)"
+      },
+      {
+        "acordao": "202627718",
+        "nivel": "essencial",
+        "justificativa": "nulidade de contrato de cartão de crédito com RMC — usa 'numerário'/'pactuação' no corpo"
+      },
+      {
+        "acordao": "202626590",
+        "nivel": "essencial",
+        "justificativa": "RMC, não comprovação da contratação pela instituição financeira"
+      },
+      {
+        "acordao": "202626737",
+        "nivel": "essencial",
+        "justificativa": "comprovação de contratação por via digital, exercício regular de direito"
+      },
+      {
+        "acordao": "202627682",
+        "nivel": "essencial",
+        "justificativa": "RMC, ação declaratória de inexistência de débito"
+      },
+      {
+        "acordao": "202627809",
+        "nivel": "essencial",
+        "justificativa": "preclusão temporal por juntada de documentos em fase recursal — ângulo processual do mesmo tema"
+      },
+      {
+        "acordao": "202629275",
+        "nivel": "essencial",
+        "justificativa": "negativa de contratação via RMC"
+      },
+      {
+        "acordao": "202629277",
+        "nivel": "essencial",
+        "justificativa": "BPC/LOAS, menor absolutamente incapaz — vocabulário 'LOAS'/'incapaz' em vez de 'consumidor'"
+      },
+      {
+        "acordao": "202627006",
+        "nivel": "essencial",
+        "justificativa": "ausência de desbloqueio do cartão, falha na prestação do serviço, dano moral por 'quantum'"
+      },
+      {
+        "acordao": "202640467",
+        "nivel": "essencial",
+        "justificativa": "nulidade de contrato de cartão de crédito consignado (RCC/RMC)"
+      },
+      {
+        "acordao": "202642057",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627943",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627139",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627287",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202628762",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202628417",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627699",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627354",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627340",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627361",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  },
+  {
+    "id": "t4_negativacao_dano_moral",
+    "pergunta": "Cabe indenização por dano moral quando o nome do consumidor é negativado/inscrito indevidamente em cadastro de inadimplentes por débito que ele não reconhece?",
+    "termos_advogado": [
+      "negativação indevida",
+      "inscrição indevida",
+      "dano moral",
+      "SPC",
+      "Serasa",
+      "cadastro de inadimplentes",
+      "Súmula 385 STJ"
+    ],
+    "itens": [
+      {
+        "acordao": "202639992",
+        "nivel": "essencial",
+        "justificativa": "negativação indevida, dano moral, embargos sobre o 'quantum'"
+      },
+      {
+        "acordao": "202640407",
+        "nivel": "essencial",
+        "justificativa": "ausência de comprovação da contratação, negativação indevida, preexistência de outras inscrições (Súmula 385)"
+      },
+      {
+        "acordao": "202640543",
+        "nivel": "essencial",
+        "justificativa": "inscrição indevida em cadastro de inadimplentes, quitação que não dependia de ato do consumidor"
+      },
+      {
+        "acordao": "202640779",
+        "nivel": "essencial",
+        "justificativa": "inscrição indevida, responsabilidade objetiva do banco"
+      },
+      {
+        "acordao": "202642678",
+        "nivel": "essencial",
+        "justificativa": "cancelamento de protesto, débito já quitado"
+      },
+      {
+        "acordao": "202627052",
+        "nivel": "essencial",
+        "justificativa": "inscrições preexistentes legítimas, Súmula 385 do STJ afastando indenização"
+      },
+      {
+        "acordao": "202628515",
+        "nivel": "essencial",
+        "justificativa": "inscrição indevida em cadastro de inadimplentes, dano moral in re ipsa"
+      },
+      {
+        "acordao": "202628613",
+        "nivel": "essencial",
+        "justificativa": "inscrição do nome da autora em cadastros de restrição ao crédito"
+      },
+      {
+        "acordao": "202630287",
+        "nivel": "essencial",
+        "justificativa": "uso de CPF de terceiro, dano moral in re ipsa, inaplicabilidade da Súmula 385"
+      },
+      {
+        "acordao": "202631687",
+        "nivel": "essencial",
+        "justificativa": "quitação antecipada do empréstimo seguida de negativação indevida"
+      },
+      {
+        "acordao": "202631728",
+        "nivel": "essencial",
+        "justificativa": "contratação eletrônica não comprovada, negativação indevida"
+      },
+      {
+        "acordao": "202626339",
+        "nivel": "essencial",
+        "justificativa": "majoração do 'quantum' indenizatório por negativação"
+      },
+      {
+        "acordao": "202626707",
+        "nivel": "essencial",
+        "justificativa": "anotação no Sistema de Informações de Crédito do Banco Central (SCR) — vocabulário 'SCR' em vez de 'negativação'"
+      },
+      {
+        "acordao": "202627708",
+        "nivel": "essencial",
+        "justificativa": "falha na prestação do serviço, inscrição indevida em cadastro de inadimplentes"
+      },
+      {
+        "acordao": "202629205",
+        "nivel": "essencial",
+        "justificativa": "negativação em cadastro de inadimplentes por cartão de crédito, desconhecimento da relação jurídica"
+      },
+      {
+        "acordao": "202630098",
+        "nivel": "essencial",
+        "justificativa": "inscrição indevida do nome do autor"
+      },
+      {
+        "acordao": "202629672",
+        "nivel": "essencial",
+        "justificativa": "negativação indevida, termo inicial da prescrição"
+      },
+      {
+        "acordao": "202640362",
+        "nivel": "essencial",
+        "justificativa": "inscrição indevida em órgão de proteção ao crédito"
+      },
+      {
+        "acordao": "202627870",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202642003",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627050",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640207",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202631738",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  },
+  {
+    "id": "t5_responsabilidade_civil_estado",
+    "pergunta": "Em que casos o Estado responde civilmente por falha ou omissão na prestação de serviço público (saúde, segurança, vias públicas)?",
+    "termos_advogado": [
+      "responsabilidade civil do Estado",
+      "omissão do poder público",
+      "falha do serviço público",
+      "art. 37 §6º CF",
+      "dano moral contra o Estado"
+    ],
+    "itens": [
+      {
+        "acordao": "202637971",
+        "nivel": "essencial",
+        "justificativa": "óbito de paciente em hospital público, falha do serviço de saúde"
+      },
+      {
+        "acordao": "202639791",
+        "nivel": "essencial",
+        "justificativa": "morte de detento por suicídio em unidade de custódia, dever de proteção"
+      },
+      {
+        "acordao": "202640397",
+        "nivel": "essencial",
+        "justificativa": "morte decorrente de abordagem policial"
+      },
+      {
+        "acordao": "202640559",
+        "nivel": "essencial",
+        "justificativa": "acidente em rodovia estadual por animal na pista, omissão na manutenção"
+      },
+      {
+        "acordao": "202641712",
+        "nivel": "essencial",
+        "justificativa": "demora excessiva em cirurgia corretiva, erro médico afastado"
+      },
+      {
+        "acordao": "202640649",
+        "nivel": "essencial",
+        "justificativa": "cirurgia eletiva no SUS, demora administrativa"
+      },
+      {
+        "acordao": "202627081",
+        "nivel": "essencial",
+        "justificativa": "lixão a céu aberto instalado por Município, dano ambiental/vizinhança — vocabulário fora do padrão médico/policial"
+      },
+      {
+        "acordao": "202628344",
+        "nivel": "essencial",
+        "justificativa": "concessionária de serviço público, responsabilidade civil do Estado combinada com direito do consumidor"
+      },
+      {
+        "acordao": "202628657",
+        "nivel": "essencial",
+        "justificativa": "acidente de trânsito, ilegitimidade passiva de agente público, coisa julgada"
+      },
+      {
+        "acordao": "202628878",
+        "nivel": "essencial",
+        "justificativa": "acidente com veículo municipal, dano moral in re ipsa"
+      },
+      {
+        "acordao": "202629622",
+        "nivel": "essencial",
+        "justificativa": "colisão com animal em rodovia estadual, responsabilidade subjetiva por omissão"
+      },
+      {
+        "acordao": "202622362",
+        "nivel": "essencial",
+        "justificativa": "erro médico e violência obstétrica, falha no serviço público de saúde"
+      },
+      {
+        "acordao": "202621422",
+        "nivel": "essencial",
+        "justificativa": "esquecimento de material estranho (gaze) em parto — erro médico com vocabulário técnico específico"
+      },
+      {
+        "acordao": "202623326",
+        "nivel": "essencial",
+        "justificativa": "ilegitimidade passiva do Estado de Sergipe em ação de indenização"
+      },
+      {
+        "acordao": "202629529",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629551",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202624432",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202622866",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202624142",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640028",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  },
+  {
+    "id": "t6_usucapiao",
+    "pergunta": "Quais são os requisitos para reconhecer a usucapião (extraordinária, ordinária ou especial urbana/rural) sobre um imóvel?",
+    "termos_advogado": [
+      "usucapião",
+      "posse mansa e pacífica",
+      "animus domini",
+      "prescrição aquisitiva",
+      "usucapião especial urbana",
+      "usucapião extraordinária"
+    ],
+    "itens": [
+      {
+        "acordao": "202640324",
+        "nivel": "essencial",
+        "justificativa": "usucapião especial urbana negada por posse decorrente de mera tolerância, ausência de animus domini"
+      },
+      {
+        "acordao": "202642126",
+        "nivel": "essencial",
+        "justificativa": "usucapião ordinário procedente, art. 1.242 do Código Civil"
+      },
+      {
+        "acordao": "202640644",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinária, extinção por abandono da causa"
+      },
+      {
+        "acordao": "202639016",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinária, embargos de declaração sobre os requisitos"
+      },
+      {
+        "acordao": "202627193",
+        "nivel": "essencial",
+        "justificativa": "usucapião especial rural, art. 191 CF e 1.239 CC"
+      },
+      {
+        "acordao": "202627260",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinário urbano sobre imóvel objeto de herança"
+      },
+      {
+        "acordao": "202627286",
+        "nivel": "essencial",
+        "justificativa": "usucapião especial urbana sobre imóvel de sociedade de economia mista — natureza jurídica de direito privado, vocabulário fora do óbvio"
+      },
+      {
+        "acordao": "202628302",
+        "nivel": "essencial",
+        "justificativa": "usucapião de terreno de marinha com aforamento, competência da Justiça Federal"
+      },
+      {
+        "acordao": "202628894",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinário, inclusão de área pública no imóvel usucapiendo"
+      },
+      {
+        "acordao": "202629504",
+        "nivel": "essencial",
+        "justificativa": "usucapião especial urbana negada por se tratar de bem público municipal imprescritível"
+      },
+      {
+        "acordao": "202629756",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinária, validade da citação por edital"
+      },
+      {
+        "acordao": "202631488",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinária de imóvel rural, posse mansa e pacífica não comprovada"
+      },
+      {
+        "acordao": "202631529",
+        "nivel": "essencial",
+        "justificativa": "usucapião ordinária, accessio possessionis"
+      },
+      {
+        "acordao": "202628451",
+        "nivel": "essencial",
+        "justificativa": "usucapião extraordinária negada por posse viciada e ausência de animus domini"
+      },
+      {
+        "acordao": "202627723",
+        "nivel": "essencial",
+        "justificativa": "ação de usucapião, honorários de defensor dativo"
+      },
+      {
+        "acordao": "202640024",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640263",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202641713",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202627057",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202626546",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202640158",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202628409",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202629523",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202642660",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      },
+      {
+        "acordao": "202628405",
+        "nivel": "desejavel",
+        "justificativa": "on-topic mais amplo/lateral"
+      }
+    ]
+  }
+]

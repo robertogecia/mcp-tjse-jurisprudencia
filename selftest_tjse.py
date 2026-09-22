@@ -170,6 +170,34 @@ def main(online: bool = False) -> int:
         import json as _j2
         velho = _j2.load(open(s._arq_recibo("202638463"))); [velho.pop(k) for k in ("texto", "id_documento", "nr_processo", "tribunal")]; _j2.dump(velho, open(s._arq_recibo("202638463"), "w"))
         mig = s.ler_recibo("202638463"); t("V6 recibo antigo (sem `texto`) é migrado sem rede", mig is not None and "texto" in mig and "texto" in _j2.load(open(s._arq_recibo("202638463"))))
+    # v0.7: ementa estruturada em campos + grafo de citações
+    E = ("DIREITO DO CONSUMIDOR. APELAÇÃO. EMPRÉSTIMO CONSIGNADO. RECURSO DESPROVIDO."
+         "I. CASO EM EXAME:APELAÇÃO INTERPOSTA CONTRA SENTENÇA DE IMPROCEDÊNCIA."
+         "II. QUESTÃO EM DISCUSSÃO1. SABER SE A ASSINATURA IMPUGNADA FOI COMPROVADA PELO BANCO."
+         "III. RAZÕES DE DECIDIRCABE AO BANCO O ÔNUS DA AUTENTICIDADE, NOS TERMOS DO TEMA 1.061 DO STJ."
+         "IV. DISPOSITIVO E TESE RECURSO DESPROVIDO. Tese de julgamento: 1. É NULO O CONTRATO SEM PROVA DA ASSINATURA. "
+         "Dispositivos relevantes citados: CPC, art. 429, II. "
+         "Jurisprudência relevante citada: STJ, Tema Repetitivo 1.061; STJ, Súmula 297; TJSE, Apelação Cível nº 202500767922, Rel. Des. X.")
+    d = s.campos_da_ementa(E)
+    t("V7 cabeçalho é o que vem antes da 1ª seção", d["cabecalho"].startswith("DIREITO DO CONSUMIDOR") and "CASO EM EXAME" not in d["cabecalho"])
+    t("V7 rótulo colado em ':' ", d["caso"].startswith("APELAÇÃO INTERPOSTA"))
+    t("V7 rótulo colado em dígito", d["questao"].startswith("1. SABER SE"))
+    t("V7 rótulo colado em letra", d["razoes"].startswith("CABE AO BANCO"))
+    t("V7 tese separada do dispositivo", d["tese"].startswith("1. É NULO") and d["dispositivo"] == "RECURSO DESPROVIDO.")
+    t("V7 legislação e jurisprudência citada", "429" in d["legislacao"] and "202500767922" in d["juris_citada"])
+    t("V7 subcampos não vazam para o dispositivo", "Tese de julgamento" not in d["dispositivo"] and "Jurisprud" not in d["dispositivo"])
+    sem = "APELAÇÃO CÍVEL. DANO MORAL. RECURSO PROVIDO. À UNANIMIDADE."
+    t("V7 ementa sem estrutura: tudo no cabeçalho (busca por campo não perde acórdão)", s.campos_da_ementa(sem)["cabecalho"] == sem.rstrip(" .") or s.campos_da_ementa(sem)["cabecalho"].startswith("APELAÇÃO"))
+    t("V7 'dispositivo' sem numeral nem 'e tese' não vira seção", s.campos_da_ementa("EMENTA. O DISPOSITIVO LEGAL INVOCADO NÃO SE APLICA AO CASO.")["dispositivo"] == "")
+    prio = "EMENTA. A QUESTÃO EM DISCUSSÃO NOS AUTOS É OUTRA. II. QUESTÃO EM DISCUSSÃO: SABER SE HÁ NULIDADE."
+    t("V7 com numeral romano presente, ocorrência solta no meio da frase é ignorada", s.campos_da_ementa(prio)["questao"] == "SABER SE HÁ NULIDADE.")
+    cs = dict(s.citacoes_da_ementa(d, E))
+    t("V7 grafo: processo do TJSE vem do campo de jurisprudência citada", ("tjse", "202500767922") in s.citacoes_da_ementa(d, E))
+    cg = s.citacoes_da_ementa(d, E)
+    t("V7 grafo: precedente qualificado, tribunal ANTES da súmula ('STJ, Súmula 297')", ("qualificado", "Tema 1061") in cg and ("qualificado", "Súmula 297/STJ") in cg)
+    t("V7 'Súmula 297' e 'Súmula 297/STJ' são a MESMA chave (senão o grafo conta em dobro)", s.ancoras("Súmula 297/STJ e adiante a Súmula 297") == ["Súmula 297/STJ"])
+    sem_tjse = dict(d, juris_citada="STJ, Tema 1061. Contrato nº 202500767922 do banco.")
+    t("V7 grafo: 12 dígitos sem 'TJSE' antes NÃO vira citação (é nº de contrato)", ("tjse", "202500767922") not in s.citacoes_da_ementa(sem_tjse, E.replace("TJSE, Apelação Cível nº 202500767922", "contrato 202500767922")))
     # FTS
     t("fts grupos (exato)", s.montar_fts(None, [["dano moral"], ["negativação", "inscrição indevida"]], exato=True) == '("dano moral") AND ("negativacao" OR "inscricao indevida")')
     t("fts radical", s.montar_fts("consign$", None) == '"consign"*')
@@ -225,6 +253,22 @@ def main(online: bool = False) -> int:
         t("RT19 republicação é guardada e avisada", "REPUBLICADO" in s.buscar(numero="202639853"))
         t("RTB19 data_inicio > data_fim é recusado", "recusada" in s.buscar(consulta="competência", data_inicio="31/12/2026", data_fim="01/01/2026"))
         t("RTB20 filtro que zerou é nomeado", "foi o filtro que zerou" in s.buscar(consulta="competência", orgao="Câmara Criminal"))
+        con.execute("INSERT OR REPLACE INTO campos VALUES('900000001','CAB','CASO','SE E DEVIDA A REPETICAO EM DOBRO','RAZOES','DISP','1. E DEVIDA A REPETICAO EM DOBRO','','')")
+        con.execute("INSERT INTO fts_campos(acordao,cabecalho,caso,questao,razoes,dispositivo,tese) VALUES('900000001','CAB','CASO','SE E DEVIDA A REPETICAO EM DOBRO','RAZOES','DISP','1. E DEVIDA A REPETICAO EM DOBRO')")
+        con.execute("INSERT OR IGNORE INTO citacoes VALUES('900000001','qualificado','Tema 1061')")
+        con.execute("INSERT OR IGNORE INTO citacoes VALUES('900000002','tjse','880000000001')")
+        con.execute("INSERT OR IGNORE INTO citacoes VALUES('900000003','tjse','202400999999')"); con.commit()
+        t("V7 busca em campo: acha na tese", "900000001" in s.buscar(consulta="repetição em dobro", em="tese"))
+        t("V7 busca em campo: não acha onde não está", "Nada no índice" in s.buscar(consulta="repetição em dobro", em="caso"))
+        t("V7 campo desconhecido é recusado com explicação", "não conhece" in s.buscar(consulta="x", em="ementa"))
+        t("V7 filtro cita=", "900000001" in s.buscar(cita="Tema 1061") and "Nada no índice" in s.buscar(cita="Tema 9999"))
+        t("V7 cita= sozinho basta (sem consulta)", "resultado" in s.buscar(cita="Tema 1061"))
+        t("V7 cita= irreconhecível é recusado", "não é uma referência" in s.buscar(consulta="x", cita="julgado tal"))
+        t("V7 autoridade interna aparece na busca", "CITADO por 1 acórdão" in s.buscar(numero="880000000001"))
+        mp = s.mapa_citacoes()
+        t("V7 mapa sem referência lista qualificados e líderes", "Tema 1061" in mp and "FORA do índice" in mp)
+        t("V7 mapa com referência lista quem cita", "900000001" in s.mapa_citacoes("Tema 1061"))
+        t("V7 mapa: zero citações não é 'não existe'", "NÃO significa" in s.mapa_citacoes("Tema 9999"))
         t("RTB21 sem texto, a ordem anunciada é a real", "ordem: recentes" in s.buscar(numero="202639853"))
         # disjuntor
         t("diagnóstico livre", "livre" in s.diagnostico())

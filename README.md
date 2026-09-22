@@ -27,10 +27,24 @@ sob demanda e guardado como **recibo** (com sha256), de modo que conferir uma ci
 | Tool | O que faz | Rede |
 |---|---|---|
 | `sincronizar_boletim_tjse` | baixa edições recentes para o índice; retomável; até 14 requisições por chamada | sim |
-| `buscar_jurisprudencia_tjse` | busca local: `grupos` de sinônimos (OU dentro, E entre), singular/plural automático, `$` radical, filtros por órgão, classe, relator, número e data de publicação, ordenação por relevância | não |
+| `buscar_jurisprudencia_tjse` | busca local: `grupos` de sinônimos (OU dentro, E entre), singular/plural automático, `$` radical, **busca por parte da ementa** (`em=questao,tese`), **filtro pelo que o acórdão cita** (`cita="Tema 1061"`), filtros por órgão, classe, relator, número e data, ordenação por relevância | não |
+| `mapa_de_citacoes_tjse` | grafo: precedentes qualificados mais aplicados, acórdãos do TJSE que as câmaras mais reusam (inclusive **anteriores ao período sincronizado**) e quem cita o quê | não |
 | `obter_inteiro_teor_tjse` | inteiro teor; órgão e data pelo **fecho**; aceita a URL do acórdão colada | 1ª vez |
 | `verificar_citacao_tjse` | confere se o trecho está **literalmente** no acórdão e avisa **de quem é a frase**: transcrição de outro tribunal, voto divergente, alegação da parte, trecho entre aspas, negação logo antes | 1ª vez |
 | `diagnostico_tjse` | disjuntor, consumo, cobertura do índice por órgão, modo | não |
+
+## Duas coisas que a busca por palavra não faz sozinha
+
+**A ementa do TJSE é estruturada** (padrão CNJ) em dois terços dos acórdãos: caso em exame, questão em discussão,
+razões de decidir, dispositivo e tese. `em="questao,tese"` procura só onde o tribunal enuncia o que decidiu — é bem
+mais preciso que varrer a ementa inteira. Quem não segue o padrão tem tudo em `cabecalho`, então buscar por campo
+não perde acórdão: apenas deixa de distingui-lo.
+
+**O grafo de citações sai das próprias ementas**, do campo "Jurisprudência relevante citada" que o tribunal preenche
+— sem baixar um único inteiro teor. Com ele dá para perguntar "quais acórdãos aplicam o Tema 1061" em vez de tentar
+adivinhar as palavras que eles usaram, e para ver quais julgados do próprio TJSE as câmaras mais reusam. A maioria
+desses é **anterior ao período sincronizado**: o grafo enxerga além da janela do índice, ainda que para ler cada um
+seja preciso achar o nº do acórdão fora daqui.
 
 Cada busca com 5 ou mais resultados abre com um **panorama** de todas as ementas que casam: resultado declarado,
 órgão, classe, súmulas/temas/IRDR citados e o vocabulário que distingue o conjunto (pista para novos grupos de sinônimos).
