@@ -1375,12 +1375,15 @@ async def sincronizar(meses: int = 3, max_requisicoes: int = MAX_REQ_POR_SINCRON
                 linhas.append(f"  edição {e['edicao']} ({br(e['data'])}) · {s['nome']}: {len(itens)} acórdãos em {len(pags)} página(s) "
                               f"({novos} novos)" + (f" ⚠ ANOMALIAS: {'; '.join(an)}" if an else ""))
         falta = 0
+        adiadas: list[str] = []
         for e in eds:
             m = con.execute("SELECT valor FROM meta WHERE chave=?", (f"menu:{e['edicao']}",)).fetchone()
             n_secs = len(json.loads(m[0])) if m else 5  # edição ainda não visitada: 5 seções é o medido
             n_vz = con.execute("SELECT COUNT(*) FROM meta WHERE chave LIKE ? AND CAST(valor AS REAL) > ?",
                                (f"vazia:{e['edicao']}:%", time.time() - 7 * 86400)).fetchone()[0]
             falta += max(0, n_secs - n_vz - con.execute("SELECT COUNT(*) FROM secoes WHERE edicao=?", (e["edicao"],)).fetchone()[0])
+            if n_vz:
+                adiadas.append(f"ed. {e['edicao']}: {n_vz}")
     except Exception as ex:
         if not isinstance(ex, PesquisaNaoRealizada):
             ex = f"ERRO INTERNO do servidor ({type(ex).__name__}: {ex}) — é defeito da ferramenta, não do portal; avise o advogado"
@@ -1389,7 +1392,11 @@ async def sincronizar(meses: int = 3, max_requisicoes: int = MAX_REQ_POR_SINCRON
     curto = (f"\n⚠ Pedi {meses} mês(es) e a lista do portal trouxe {len(eds)} edição(ões) (a mais antiga de {br(min((x['data'] or '9999-12-31') for x in eds))}): "
              "o portal pode limitar a listagem — o período anterior NÃO foi coberto.") if len(eds) < meses - 1 else ""
     cont = curto + (f"\nFaltam ≥ {falta} seção(ões) no período pedido: chame de novo (o teto por chamada é {orc} requisições; "
-            "o que já foi baixado não é rebaixado)." if falta else "\nTodas as edições LISTADAS pelo portal no período estão completas.")
+            "o que já foi baixado não é rebaixado)." if falta else
+            ("\nNenhuma seção pendente de download, MAS há seção que veio SEM ACÓRDÃO e não entrou no índice ("
+             + "; ".join(adiadas) + "): pode ser órgão sem julgado no mês ou página de erro. Enquanto não entrarem, a edição "
+             "segue contada como INCOMPLETA e zero resultado nela vale menos. Nova tentativa automática 7 dias depois da última."
+             if adiadas else "\nTodas as edições LISTADAS pelo portal no período estão completas."))
     return (f"Sincronização do Boletim Jurídico do TJSE — {gasto} requisição(ões)\n" + ("\n".join(linhas) or "  nada novo")
             + cont + f"\nÍndice: {cobertura(con)}")
 
