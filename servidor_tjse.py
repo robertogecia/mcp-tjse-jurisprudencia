@@ -64,7 +64,9 @@ import sqlite3
 import sys
 import threading
 import time
+import platform
 import unicodedata
+import urllib.parse
 from typing import Any
 
 try:
@@ -1487,8 +1489,9 @@ async def sincronizar(meses: int = 3, max_requisicoes: int = MAX_REQ_POR_SINCRON
     except Exception as ex:
         if not isinstance(ex, PesquisaNaoRealizada):
             ex = f"ERRO INTERNO do servidor ({type(ex).__name__}: {ex}) — é defeito da ferramenta, não do portal; avise o advogado"
+        _relato = f"\nSe persistir, relate: {_link_relato('sincronizacao')}" if "ERRO INTERNO" in str(ex) else ""
         return (f"SINCRONIZAÇÃO INTERROMPIDA — {ex}\nFeito antes da interrupção ({gasto} requisições):\n"
-                + ("\n".join(linhas) or "  nada") + f"\nÍndice: {cobertura(con)}")
+                + ("\n".join(linhas) or "  nada") + f"\nÍndice: {cobertura(con)}" + _relato)
     curto = (f"\n⚠ Pedi {meses} mês(es) e a lista do portal trouxe {len(eds)} edição(ões) (a mais antiga de {br(min((x['data'] or '9999-12-31') for x in eds))}): "
              "o portal pode limitar a listagem — o período anterior NÃO foi coberto.") if len(eds) < meses - 1 else ""
     cont = curto + (f"\nFaltam ≥ {falta} seção(ões) no período pedido: chame de novo (o teto por chamada é {orc} requisições; "
@@ -1515,7 +1518,7 @@ def buscar(consulta: str | None = None, grupos: list[list[str]] | None = None, o
                        ordenacao, exato, em, cita)
     except Exception as ex:
         return (f"BUSCA NÃO REALIZADA — erro do índice local ({type(ex).__name__}: {ex}). Isto NÃO é 'nada encontrado': "
-                "reformule sem pontuação especial ou rode `diagnostico_tjse`.")
+                f"reformule sem pontuação especial ou rode `diagnostico_tjse`. Se persistir, relate: {_link_relato('busca_indice_local')}")
 
 
 def _data_iso(v: str | None, rotulo: str) -> str | None:
@@ -1937,6 +1940,23 @@ def _diagnostico() -> str:
 # NÃO passa pelo disjuntor do TJSE, que é do portal do tribunal e não deste projeto.
 # Desligar: variável de ambiente TJSE_MCP_SEM_AVISO_ATUALIZACAO=1.
 REPO_GITHUB = "robertogecia/mcp-tjse-jurisprudencia"
+ISSUES_NOVA = f"https://github.com/{REPO_GITHUB}/issues/new"
+
+
+def _link_relato(tipo: str) -> str:
+    """URL de nova issue no GitHub, JÁ PREENCHIDA só com dado técnico — NUNCA com o texto da
+    busca, número de acórdão/processo ou nome de parte (issues são públicas). Mesmo formato do
+    TJRO/TCE-RO (`linkRelato`/`_link_relato`); só para ERRO DE VERDADE (bug), nunca para
+    PESQUISA NÃO REALIZADA (isso é o portal/disjuntor, não defeito da ferramenta)."""
+    titulo = f"Erro {tipo} na v{VERSAO}"
+    corpo = (
+        "**Relato gerado pela extensão** (revise antes de enviar; não inclua nome de parte, "
+        "número de acórdão/processo nem o texto da sua busca — issues são públicas)\n\n"
+        f"- Versão: {VERSAO}\n- Sistema: {platform.system()} {platform.release()}\n"
+        f"- Tipo do erro: {tipo}\n"
+        "\n**O que eu estava fazendo:** \n\n**Desde quando acontece?** \n"
+    )
+    return f"{ISSUES_NOVA}?title={urllib.parse.quote(titulo)}&body={urllib.parse.quote(corpo)}"
 RELEASES_API = f"https://api.github.com/repos/{REPO_GITHUB}/releases/latest"
 RELEASES_PAGINA = f"https://github.com/{REPO_GITHUB}/releases/latest"
 CREDITO = ("_Esta extensão foi desenvolvida por @robertogrecia (Roberto Grécia Bessa, "
@@ -1982,8 +2002,8 @@ def iniciar_checagem_versao() -> None:
 
 
 def aviso_atualizacao(nova: str) -> str:
-    return (f"_Há uma versão mais nova desta extensão (v{nova}; a instalada é a v{VERSAO}): "
-            f"{RELEASES_PAGINA}_")
+    return (f"_Há uma versão mais nova da extensão (v{nova}). Você usa o servidor Python (referência, v{VERSAO}), "
+            f"que tem numeração própria: baixe o servidor_tjse.py atualizado ou a extensão de um clique em {RELEASES_PAGINA}_")
 
 
 def com_avisos(texto: str) -> str:
