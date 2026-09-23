@@ -65,6 +65,7 @@ server.registerTool("buscar_jurisprudencia_tjse", {
     exato: z.boolean().default(false).describe("true desliga a variação singular/plural."),
     em: z.string().default("tudo").describe("tudo | questao | tese | razoes | caso | dispositivo | cabecalho — combináveis (\"questao,tese\"). O cabeçalho entra sempre, com peso baixo."),
     cita: z.string().optional().describe("\"Tema 1061\", \"Súmula 479/STJ\", \"IRDR 15\", \"SV 47\" ou nº de processo do TJSE (12 dígitos)."),
+    triagem: z.boolean().default(false).describe("true devolve 30 candidatos em lista curta (ementa de até 700 caracteres, sem panorama) para VOCÊ reordenar: pergunta em linguagem natural, palavras-chave amplas + triagem=true, e só então leia o teor dos que tratam mesmo do assunto. Medido em 23/09/2026: reordenar os 50 primeiros subiu a precisão dos 10 primeiros de 40% para 53%."),
   },
   annotations: SO_LEITURA,
 }, seguro("busca_indice_local", (a) => buscar({ ...a, _relato: linkRelato })));

@@ -8,3 +8,4 @@ __pycache__/
 harness/_db_index.json
 harness/_cand_*.txt
 harness/_resultado_bruto.json
+experimento-semantico/vetores.npy

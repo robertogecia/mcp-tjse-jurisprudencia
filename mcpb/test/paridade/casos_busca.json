@@ -332,5 +332,35 @@
   "p": {
    "referencia": "banana"
   }
+ },
+ {
+  "nome": "triagem_astreintes",
+  "p": {
+   "consulta": "astreintes banco",
+   "triagem": true
+  }
+ },
+ {
+  "nome": "triagem_grupos_orgao",
+  "p": {
+   "grupos": [
+    [
+     "negativação",
+     "inscrição indevida"
+    ],
+    [
+     "dano moral"
+    ]
+   ],
+   "orgao": "1ª Câmara Cível",
+   "triagem": true
+  }
+ },
+ {
+  "nome": "triagem_zero",
+  "p": {
+   "consulta": "zzxxqq",
+   "triagem": true
+  }
  }
 ]

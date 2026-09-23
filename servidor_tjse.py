@@ -86,7 +86,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.8.1"
+VERSAO = "0.8.2"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -1512,10 +1512,11 @@ def _grava_meta(con: sqlite3.Connection, chave: str, valor: str) -> None:
 def buscar(consulta: str | None = None, grupos: list[list[str]] | None = None, orgao: str | None = None,
            classe: str | None = None, relator: str | None = None, numero: str | None = None,
            por_pagina: int = 10, pagina: int = 1, data_inicio: str | None = None, data_fim: str | None = None,
-           ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo", cita: str | None = None) -> str:
+           ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo", cita: str | None = None,
+           triagem: bool = False) -> str:
     try:
         return _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-                       ordenacao, exato, em, cita)
+                       ordenacao, exato, em, cita, triagem)
     except Exception as ex:
         return (f"BUSCA NÃO REALIZADA — erro do índice local ({type(ex).__name__}: {ex}). Isto NÃO é 'nada encontrado': "
                 f"reformule sem pontuação especial ou rode `diagnostico_tjse`. Se persistir, relate: {_link_relato('busca_indice_local')}")
@@ -1559,7 +1560,7 @@ def _ref_citada(cita: str) -> tuple[str, str] | None:
 
 
 def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio, data_fim,
-            ordenacao, exato, em="tudo", cita=None) -> str:
+            ordenacao, exato, em="tudo", cita=None, triagem=False) -> str:
     con = _db()
     cab = f"Índice local do Boletim Jurídico do TJSE: {cobertura(con)}.\n"
     rodape = ("\nLIMITES: só 2º grau publicado no Boletim — sem Turmas Recursais, Turma de Uniformização nem monocráticas, e só "
@@ -1657,7 +1658,7 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     total = con.execute("SELECT COUNT(*)" + sql, args).fetchone()[0]
     if not q:
         ordenacao = "recentes" if ordenacao == "relevantes" else ordenacao  # sem texto não há relevância: diz a ordem real
-    por_pagina = 5 if por_pagina <= 5 else (10 if por_pagina <= 10 else 20)
+    por_pagina = 30 if triagem else (5 if por_pagina <= 5 else (10 if por_pagina <= 10 else 20))
     pagina = max(1, int(pagina))
     if ordenacao not in ("relevantes", "recentes", "antigos"):
         return "`ordenacao` deve ser 'relevantes', 'recentes' ou 'antigos'."
@@ -1681,6 +1682,19 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
             sem_filtro = (f" SEM os filtros ({', '.join(filtros)}) a mesma expressão tem {n0} resultado(s) — foi o filtro que zerou, "
                           "não a falta de julgado." if n0 else "")
         return cab + f"Nada no índice local para {q or numero!r}{filtro_data}.{sem_filtro}" + (diagnostico_zero(con, partes) if q else "") + rodape
+    if triagem:
+        # Reordenação por quem lê: o experimento de 23/09/2026 (20 perguntas, juiz cego) mostrou que a busca por palavras já traz o
+        # acórdão certo entre os 50 primeiros, mas mal posicionado; um reranker subiu a precisão@10 de 40% para 53%. Aqui o
+        # reranker é o próprio Claude: lista curta, sem panorama nem adornos, com mais ementa por item.
+        lin = [cab + f"MODO TRIAGEM — {total} resultado(s); {len(rows)} candidatos abaixo (página {pagina}, ordem: {ordenacao}{filtro_data}). "
+               "LEIA cada ementa e ordene você: descarte o que não trata do problema jurídico pedido e promova o que trata; só depois "
+               "aprofunde (`obter_inteiro_teor_tjse`) e, para aspas, `verificar_citacao_tjse`.\n"
+               f"expressão: {q if len(q) < 700 else q[:700] + '…'}\n"]
+        for i, r in enumerate(rows, 1):
+            et = r["ementa"]
+            lin.append(f"{i}. Acórdão {r['acordao']} · processo {r['processo']} · {r['recurso'] or r['classe']} · {r['orgao']} · {r['relator']}\n"
+                       f"   {et if len(et) <= 700 else et[:700] + '…'}\n")
+        return "\n".join(lin) + rodape
     termos = [norm(t) for g in (grupos or []) for t in g]
     termos += [norm(a or b) for a, b in re.findall(r'"([^"]+)"|(\S+)', consulta or "")]
     out = [cab + f"{total} resultado(s) — página {max(1, pagina)} ({por_pagina}/pág.) — ordem: {ordenacao}{filtro_data}"
@@ -2045,7 +2059,7 @@ def _servidor():
                                    numero: str | None = None, por_pagina: int = 10, pagina: int = 1,
                                    data_inicio: str | None = None, data_fim: str | None = None,
                                    ordenacao: str = "relevantes", exato: bool = False, em: str = "tudo",
-                                   cita: str | None = None) -> str:
+                                   cita: str | None = None, triagem: bool = False) -> str:
         """Busca acórdãos de 2º grau do TJSE no ÍNDICE LOCAL do Boletim Jurídico. Zero rede, zero custo de disjuntor.
         Consulta sem acento e sem caixa.
 
@@ -2072,6 +2086,10 @@ def _servidor():
                 combinar ("questao,tese"). Quem não segue o padrão tem tudo em "cabecalho", que entra sempre —
                 por isso buscar por campo NÃO perde acórdão.
             cita: filtra pelo que o acórdão CITA — "Tema 1061", "Súmula 479/STJ", "IRDR 15" ou processo do TJSE.
+            triagem: True devolve 30 candidatos em lista curta (ementa de até 700 caracteres, sem panorama) para VOCÊ
+                reordenar: pergunta em linguagem natural, palavras-chave amplas + triagem=True, e só então leia o teor
+                dos que tratam mesmo do assunto. Medido em 23/09/2026: reordenar os 50 primeiros subiu a precisão
+                dos 10 primeiros de 40% para 53%.
 
         Returns:
             Lista de ementas com processo, acórdão, classe, relator, órgão do cadastro, data de publicação e link,
@@ -2084,7 +2102,7 @@ def _servidor():
             o período anterior ao Boletim indexado. Zero resultado aqui nunca é 'não localizado no TJSE' — é
             'não localizado nesta janela'; o complemento é o JusRatio."""
         return com_avisos(buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina, data_inicio,
-                                 data_fim, ordenacao, exato, em, cita))
+                                 data_fim, ordenacao, exato, em, cita, triagem))
 
     @mcp.tool()
     async def obter_inteiro_teor_tjse(numero_acordao: str, numero_processo: str | None = None,

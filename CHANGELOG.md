@@ -1,5 +1,15 @@
 # Histórico
 
+- **v1.1.0 (23/09/2026) — `triagem=true` na busca: o Claude reordena, sem download novo.** Testamos se busca semântica (vetores de
+  ementa, modelo multilingual-e5-small) e um reranker (bge-reranker-v2-m3) melhorariam a busca: 20 perguntas em linguagem natural,
+  julgadas às cegas por um agente que não sabia qual método trouxe cada acórdão. Precisão nos 10 primeiros: busca por palavras
+  40%, semântica pura 35%, híbrida 38%, reranker sobre os 50 primeiros 53%. A semântica não se pagou; o ganho vem de **reordenar**
+  o que a busca por palavras já traz. Como o reranker tem 2,2 GB e não cabe numa extensão de um clique, o papel dele passou ao
+  próprio Claude: `triagem=true` devolve 30 candidatos em lista curta (ementa de até 700 caracteres, sem panorama) para ele ler,
+  descartar o que não trata do assunto e ordenar. Medido do mesmo jeito: **59,5%** (contra 40,5% da busca atual). Zero dependência
+  e zero download; Python (v0.8.2) e Node em paridade (48 casos). Limites: 20 perguntas, um só juiz, amostra pequena; a ementa é só
+  o começo do julgado e a verificação do inteiro teor continua obrigatória.
+
 - **v1.0.2 (23/09/2026) — o nº do acórdão NÃO tem 9 dígitos.** Achado ao conferir a extensão contra o portal real: o TJSE numera o
   acórdão como **ano + sequencial SEM zeros à esquerda** (`2026` + `6743` = `20266743`), então tem de **5 a 9 dígitos**. Medido no
   índice: 6.300 de 38.283 acórdãos (16,5%) têm menos de 9 — e a busca por `numero` (Node **e** Python) só aceitava 9 ou 12, recusando

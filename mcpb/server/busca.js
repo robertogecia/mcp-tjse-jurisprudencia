@@ -213,7 +213,7 @@ export function buscar(p) {
 }
 
 function _buscar({ consulta = null, grupos = null, orgao = null, classe = null, relator = null, numero = null, por_pagina = 10, pagina = 1,
-  data_inicio = null, data_fim = null, ordenacao = "relevantes", exato = false, em = "tudo", cita = null }) {
+  data_inicio = null, data_fim = null, ordenacao = "relevantes", exato = false, em = "tudo", cita = null, triagem = false }) {
   const con = db();
   const cab = `Índice local do Boletim Jurídico do TJSE: ${cobertura(con)}.\n`;
   const rodape = "\nLIMITES: só 2º grau publicado no Boletim — sem Turmas Recursais, Turma de Uniformização nem monocráticas, e só as edições sincronizadas. " +
@@ -298,7 +298,7 @@ function _buscar({ consulta = null, grupos = null, orgao = null, classe = null, 
   const sql = ` FROM ${base} WHERE ${cond}`;
   const total = escalar(con, "SELECT COUNT(*) n" + sql, ...args);
   if (!q) ordenacao = ordenacao === "relevantes" ? "recentes" : ordenacao;   // sem texto não há relevância: diz a ordem real
-  por_pagina = por_pagina <= 5 ? 5 : (por_pagina <= 10 ? 10 : 20);
+  por_pagina = triagem ? 30 : (por_pagina <= 5 ? 5 : (por_pagina <= 10 ? 10 : 20));
   pagina = Math.max(1, Math.trunc(pagina));
   if (!["relevantes", "recentes", "antigos"].includes(ordenacao)) return "`ordenacao` deve ser 'relevantes', 'recentes' ou 'antigos'.";
   let rows;
@@ -320,6 +320,17 @@ function _buscar({ consulta = null, grupos = null, orgao = null, classe = null, 
       if (n0) semFiltro = ` SEM os filtros (${filtros.join(", ")}) a mesma expressão tem ${n0} resultado(s) — foi o filtro que zerou, não a falta de julgado.`;
     }
     return cab + `Nada no índice local para ${pyRepr1(q || numero)}${filtroData}.${semFiltro}` + (q ? diagnosticoZero(con, partes) : "") + rodape;
+  }
+  if (triagem) {
+    // Reordenação por quem lê (experimento de 23/09/2026, juiz cego: precisão@10 de 40% para 53% com reranker); aqui o reranker é o próprio Claude.
+    const lin = [cab + `MODO TRIAGEM — ${total} resultado(s); ${rows.length} candidatos abaixo (página ${pagina}, ordem: ${ordenacao}${filtroData}). ` +
+      "LEIA cada ementa e ordene você: descarte o que não trata do problema jurídico pedido e promova o que trata; só depois aprofunde (`obter_inteiro_teor_tjse`) e, para aspas, `verificar_citacao_tjse`.\n" +
+      `expressão: ${q.length < 700 ? q : q.slice(0, 700) + "…"}\n`];
+    rows.forEach((r, i) => {
+      const et = r.ementa;
+      lin.push(`${i + 1}. Acórdão ${r.acordao} · processo ${r.processo} · ${r.recurso || r.classe} · ${r.orgao} · ${r.relator}\n   ${et.length <= 700 ? et : et.slice(0, 700) + "…"}\n`);
+    });
+    return lin.join("\n") + rodape;
   }
   const termos = (grupos || []).flatMap((g) => g.map(norm));
   for (const m of (consulta || "").matchAll(pyre(String.raw`"([^"]+)"|(\S+)`, "g"))) termos.push(norm(m[1] || m[2]));
