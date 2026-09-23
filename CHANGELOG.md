@@ -1,5 +1,11 @@
 # Histórico
 
+- **v1.0.1 (23/09/2026)** — `importar_pacote_tjse` em conexão lenta: o orçamento de tempo da chamada deixou de ter piso de 1 s
+  (respeita o que foi pedido) e, se o download consumir o orçamento, a importação — que leva ~10 s e é retomável — ganha uma
+  janela própria em vez de exigir uma terceira chamada. Teste de regressão com conexão simulada lenta (1ª chamada devolve o
+  progresso; a 2ª conclui). Fluxo real conferido contra o GitHub: pacote de 77 MB baixado, hash conferido, 74 arquivos
+  extraídos, 38.283 acórdãos indexados e buscados. 71 testes.
+
 - **v1.0.0 (23/09/2026) — extensão `.mcpb` de um clique.** Porte do servidor Python para Node (`mcpb/`), no molde das extensões
   do TJRO e do TRF1: o Claude Desktop já traz o Node (24.21, com `node:sqlite` e FTS5 — conferido no binário), então o
   advogado baixa **um arquivo**, dá dois cliques e não instala mais nada. O Python continua sendo a **referência**; o Node

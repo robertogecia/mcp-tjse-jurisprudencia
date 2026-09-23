@@ -3,7 +3,7 @@
 import os from "node:os";
 import path from "node:path";
 
-export const VERSAO = "1.0.0";
+export const VERSAO = "1.0.1";
 export const BOLETIM = "https://diario.tjse.jus.br/revista/internet";
 export const URL_TEOR = "https://www.tjse.jus.br/tjnet/jurisprudencia/relatorio.wsp";
 export const URL_FORM_TURNSTILE = "https://www.tjse.jus.br/portal/consultas/jurisprudencia/judicial";

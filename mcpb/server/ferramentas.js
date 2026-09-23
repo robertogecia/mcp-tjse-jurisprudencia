@@ -278,7 +278,7 @@ export async function importarPacote(baixar, { prazoMs = Date.now() + 45_000 } =
   const quer = baixar === undefined ? !temArquivos() : Boolean(baixar);
   if (quer || estadoPacote.rodando) {
     const p = baixarEExtrair();
-    const resultado = await Promise.race([p.then(() => "fim"), dormir(Math.max(1, (prazoMs - Date.now()) / 1000)).then(() => "tempo")]);
+    const resultado = await Promise.race([p.then(() => "fim"), dormir(Math.max(0.05, (prazoMs - Date.now()) / 1000)).then(() => "tempo")]);
     if (resultado === "tempo" && estadoPacote.rodando)
       return `⏳ Baixando o pacote do TJSE (${ARQUIVO_PACOTE}): ${fmtMB(estadoPacote.baixado)}${estadoPacote.total ? ` de ${fmtMB(estadoPacote.total)}` : ""} MB. ` +
         "O download continua em segundo plano — chame `importar_pacote_tjse` de novo em instantes para concluir. Nada foi enviado do seu computador: é só um download.";
@@ -287,5 +287,7 @@ export async function importarPacote(baixar, { prazoMs = Date.now() + 45_000 } =
   } else if (!temArquivos()) {
     return `Nada em \`${dirSecoes()}\` para importar. Chame com baixar=true para baixar o pacote pronto do GitHub, ou use \`sincronizar_boletim_tjse\` (baixa direto do portal do tribunal, mais lento).`;
   }
-  return [...linhas, importarSecoesDoBruto(db(), { prazoMs })].join("\n");
+  // a importação inteira leva ~10 s e é retomável: mesmo que o download tenha gasto o orçamento, ela ganha uma janela própria
+  // (assim o usuário não precisa de uma terceira chamada só para um índice que já está a segundos de ficar pronto)
+  return [...linhas, importarSecoesDoBruto(db(), { prazoMs: Math.max(prazoMs, Date.now() + 12_000) })].join("\n");
 }

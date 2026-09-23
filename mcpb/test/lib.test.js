@@ -611,9 +611,30 @@ describe("pacote de HTML bruto: baixar, conferir e extrair", () => {
     r = await rodar(await tarGz([["LEIAME.txt", "x"]]));
     assert.equal(r.n, 0); assert.match(r.erro, /nenhuma seção reconhecível/);
   });
-  it("importarPacote: sem nada em disco e baixar=false, orienta; com o pacote, baixa e importa", async () => {
+  it("importarPacote: sem nada em disco e baixar=false, orienta", async () => {
     fs.rmSync(path.join(CFG.dirBase(), "secoes"), { recursive: true, force: true });
     assert.ok((await F.importarPacote(false)).includes("Nada em"));
+  });
+  it("conexão LENTA: a 1ª chamada devolve o progresso, o download segue em segundo plano e a 2ª conclui e importa", async () => {
+    const crypto = await import("node:crypto"), { Readable } = await import("node:stream");
+    const pleno = fx("09-principal-168-pleno.html");
+    const gz = (await import("node:zlib")).gzipSync(Buffer.from(pleno, "utf8"));
+    const cab = (nome, dados) => { const c = Buffer.alloc(512); c.write(nome, 0); c.write("0000644\0", 100); c.write(dados.length.toString(8).padStart(11, "0") + "\0", 124); c.write("0", 156); c.write("ustar\0", 257);
+      let x = 256; for (let i = 0; i < 512; i++) if (i < 148 || i >= 156) x += c[i]; c.write(x.toString(8).padStart(6, "0") + "\0 ", 148); return Buffer.concat([c, dados, Buffer.alloc((512 - dados.length % 512) % 512)]); };
+    const bytes = (await import("node:zlib")).gzipSync(Buffer.concat([cab("secoes/501-10.html.gz", gz), Buffer.alloc(1024)]));
+    const sha = crypto.createHash("sha256").update(bytes).digest("hex");
+    async function* lento() { const n = 20, t = Math.ceil(bytes.length / n); for (let i = 0; i < n; i++) { await new Promise((r) => setTimeout(r, 80)); yield bytes.subarray(i * t, (i + 1) * t); } }
+    const antes = globalThis.fetch;
+    globalThis.fetch = async (url) => url.endsWith("SHA256SUMS.txt") ? new Response(`${sha}  ${PK.ARQUIVO_PACOTE}\n`)
+      : new Response(Readable.toWeb(Readable.from(lento())), { headers: { "content-length": String(bytes.length) } });
+    try {
+      fs.rmSync(path.join(CFG.dirBase(), "secoes"), { recursive: true, force: true });
+      const r1 = await F.importarPacote(true, { prazoMs: Date.now() + 250 });
+      assert.match(r1, /Baixando o pacote do TJSE.*chame `importar_pacote_tjse` de novo/s);
+      const r2 = await F.importarPacote(true, { prazoMs: Date.now() + 15_000 });
+      assert.ok(r2.includes("Pacote baixado e conferido (hash confere)") && r2.includes("Importação do HTML bruto"), r2.slice(0, 300));
+      assert.match(r2, /edição 501 · Tribunal Pleno: 43 acórdãos/);   // leu a seção inteira (43 é o do fixture); a inserção pode virar republicação
+    } finally { globalThis.fetch = antes; }
   });
 });
 
