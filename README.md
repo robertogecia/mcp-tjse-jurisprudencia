@@ -134,7 +134,7 @@ Em `integracoes/` há material opcional para quem usa Claude Code: uma skill aut
   (a saída diz qual é) — **nunca** "não existe no TJSE".
 - A edição sai no fim do mês com os julgados do mês anterior; a data do Boletim é de **publicação**. Data de julgamento,
   só no inteiro teor.
-- O TJSE numera por **processo (12 dígitos) + acórdão (9 dígitos)**; o inteiro teor não traz número CNJ.
+- O TJSE numera por **processo (12 dígitos) + acórdão (ano + sequencial sem zeros: de 5 a 9 dígitos, ex. `202561964` e `20266743`)**; o inteiro teor não traz número CNJ.
 - A ementa do Boletim vem em CAIXA ALTA e pode diferir da original: aspas só depois de `verificar_citacao_tjse`.
 - O voto do TJSE costuma **transcrever ementas e até fechos de outros tribunais**. O alerta de transcrição pega a grande
   maioria desses casos (medição em `CHANGELOG.md`), mas não substitui ler o acórdão.

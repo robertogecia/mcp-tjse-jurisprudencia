@@ -33,7 +33,7 @@ LIMITES, DITOS COM TODAS AS LETRAS
     do advogado, ou a base de jurisprudência que ele assinar).
   • A busca enxerga só as edições já sincronizadas. "Nada encontrado" = nada NO ÍNDICE LOCAL,
     no período coberto — a saída sempre diz qual é. Nunca é "não localizado no TJSE".
-  • O TJSE numera por processo (12 dígitos) e acórdão (9 dígitos); o inteiro teor não traz
+  • O TJSE numera por processo (12 dígitos) e acórdão (ano + sequencial sem zeros: 5 a 9 dígitos); o inteiro teor não traz
     número CNJ.
   • A ementa do Boletim é caixa alta: citação literal se confere no inteiro teor, nunca nela.
 
@@ -1565,9 +1565,11 @@ def _buscar(consulta, grupos, orgao, classe, relator, numero, por_pagina, pagina
     where, args = [], []
     if numero:
         n = re.sub(r"\D", "", numero)
-        if len(n) not in (9, 12):
+        # acórdão = ano + sequencial SEM zeros à esquerda ("2026" + "6743" = 20266743): 5 a 9 dígitos. Achado em 23/09/2026:
+        # 16,5% do índice tem acórdão com menos de 9 dígitos, e a validação antiga (só 9 ou 12) os recusava.
+        if not (5 <= len(n) <= 9 or len(n) == 12):
             return (f"Pedido recusado: `numero` com {len(n)} dígitos. O TJSE numera por PROCESSO (12 dígitos, ex. 202600737656) e "
-                    "ACÓRDÃO (9 dígitos); o Boletim e o inteiro teor não trazem número CNJ, então não há como buscar por ele aqui. "
+                    "ACÓRDÃO (ano + sequencial, de 5 a 9 dígitos, ex. 202561964 ou 20266743); o Boletim e o inteiro teor não trazem número CNJ, então não há como buscar por ele aqui. "
                     "Isto NÃO é 'não localizado'.")
         where.append("(a.acordao=? OR a.processo=?)"); args += [n, n]
     try:
@@ -1728,10 +1730,10 @@ async def _teor(acordao: str, processo: str | None) -> tuple[dict, dict, bool]:
         processo, acordao = (lk.group(1), lk.group(2)) if lk.group(1) else (lk.group(4), lk.group(3))
     acordao = re.sub(r"\D", "", acordao or "")
     if len(acordao) == 12 and not processo:
-        raise ValueError("isso parece nº de PROCESSO (12 dígitos); o inteiro teor pede o nº do ACÓRDÃO (9 dígitos). "
+        raise ValueError("isso parece nº de PROCESSO (12 dígitos); o inteiro teor pede o nº do ACÓRDÃO (ano + sequencial, de 5 a 9 dígitos). "
                          "Ache-o com `buscar_jurisprudencia_tjse(numero=…)`.")
     if not acordao:
-        raise ValueError("informe o nº do acórdão (9 dígitos, como sai na busca).")
+        raise ValueError("informe o nº do acórdão (ano + sequencial, de 5 a 9 dígitos, como sai na busca).")
     rec = ler_recibo(acordao)
     do_disco = rec is not None
     if rec is None:
@@ -1850,7 +1852,7 @@ def mapa_citacoes(referencia: str | None = None, limite: int = 15) -> str:
                            "(SELECT processo FROM acordaos)").fetchone()[0]
         linhas.append(f"\n{fora} processo(s) do TJSE são citados pelos acórdãos do índice mas estão FORA dele (julgados "
                       "anteriores ao período sincronizado): o grafo enxerga além da janela, mas para LER cada um é "
-                      "preciso o nº do ACÓRDÃO (9 dígitos), que a ementa citante não traz — busque-o na base que você "
+                      "preciso o nº do ACÓRDÃO (ano + sequencial), que a ementa citante não traz — busque-o na base que você "
                       "assinar, ou no portal oficial, e confira aqui com `obter_inteiro_teor_tjse`.")
         linhas.append("Para ver quem cita um deles: `mapa_de_citacoes_tjse(referencia='Tema 1061')` ou o nº do processo.")
         return "\n".join(linhas)
@@ -2037,7 +2039,7 @@ def _servidor():
                 FECHO do acórdão, que só `obter_inteiro_teor_tjse` lê.
             classe: classe processual, ex. "Apelação Cível".
             relator: nome ou parte do nome do relator.
-            numero: processo (12 dígitos) ou acórdão (9 dígitos). Dispensa `consulta`/`grupos`.
+            numero: processo (12 dígitos) ou acórdão (ano + sequencial, 5 a 9 dígitos: 202561964, 20266743). Dispensa `consulta`/`grupos`.
             por_pagina: até 50. Busca ampla com 50 já estourou o limite de saída do chamador em servidor irmão
                 (TRF1, 11/09/2026) — comece em 10 e só aumente com filtro aplicado.
             pagina: 1 em diante.

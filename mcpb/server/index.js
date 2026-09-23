@@ -56,7 +56,7 @@ server.registerTool("buscar_jurisprudencia_tjse", {
     orgao: z.string().optional().describe("Seção do Boletim, ex. \"1ª Câmara Cível\". Vem do CADASTRO; o órgão que vale para citar é o do FECHO, que só obter_inteiro_teor_tjse lê."),
     classe: z.string().optional().describe("Classe processual, ex. \"Apelação Cível\"."),
     relator: z.string().optional().describe("Nome ou parte do nome do relator."),
-    numero: z.string().optional().describe("Processo (12 dígitos) ou acórdão (9 dígitos). Dispensa consulta/grupos."),
+    numero: z.string().optional().describe("Processo (12 dígitos) ou acórdão (ano + sequencial, 5 a 9 dígitos: 202561964, 20266743). Dispensa consulta/grupos."),
     por_pagina: z.number().int().min(1).max(50).default(10).describe("Resultados por página (arredonda para 5, 10 ou 20). Comece em 10."),
     pagina: z.number().int().min(1).default(1).describe("Página, de 1 em diante."),
     data_inicio: z.string().optional().describe("dd/mm/aaaa — data de PUBLICAÇÃO do Boletim. O julgamento é do MÊS ANTERIOR à publicação."),
@@ -75,7 +75,7 @@ server.registerTool("obter_inteiro_teor_tjse", {
     "Órgão julgador e data saem do FECHO ('ACORDAM… Tribunal de Justiça do Estado de Sergipe, nesta …'), não do cadastro; a saída traz `orgao_fonte`. " +
     "`numero_processo` só é necessário se o acórdão não estiver no índice local — ou cole em `numero_acordao` a URL do inteiro teor. Saída cortada = 'lido EM PARTE'.",
   inputSchema: {
-    numero_acordao: z.string().describe("Nº do acórdão (9 dígitos) — ou a URL do inteiro teor colada."),
+    numero_acordao: z.string().describe("Nº do acórdão (ano + sequencial, 5 a 9 dígitos, como sai na busca) — ou a URL do inteiro teor colada."),
     numero_processo: z.string().optional().describe("Nº do processo (12 dígitos); só se o acórdão não estiver no índice local."),
     com_partes: z.boolean().default(false).describe("true inclui o bloco de qualificação das partes (nomes). Padrão: cortado."),
     max_caracteres: z.number().int().min(2000).default(60000).describe("Corta a saída neste tamanho (o recibo guarda tudo)."),
@@ -89,7 +89,7 @@ server.registerTool("verificar_citacao_tjse", {
     "✅ pode vir com alertas — TRANSCRIÇÃO (trecho de outro tribunal copiado no voto), VOTO DIVERGENTE (pode ser o voto vencido), ALEGAÇÃO DA PARTE (relatório narrando o que a parte sustenta), " +
     "ENTRE ASPAS (o tribunal citando alguém), NEGAÇÃO (recorte que inverte o julgado): cada um muda A QUEM a frase pode ser atribuída. Falha de rede = citação NÃO CONFERIDA, nunca ❌.",
   inputSchema: {
-    numero_acordao: z.string().describe("Nº do acórdão (9 dígitos) — ou a URL do inteiro teor."),
+    numero_acordao: z.string().describe("Nº do acórdão (ano + sequencial, 5 a 9 dígitos) — ou a URL do inteiro teor."),
     trecho: z.string().describe("Texto que se pretende citar entre aspas (cortes marcados com [...])."),
     numero_processo: z.string().optional().describe("Nº do processo (12 dígitos); só se o acórdão não estiver no índice local."),
   },

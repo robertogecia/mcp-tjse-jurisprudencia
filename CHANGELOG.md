@@ -1,5 +1,17 @@
 # Histórico
 
+- **v1.0.2 (23/09/2026) — o nº do acórdão NÃO tem 9 dígitos.** Achado ao conferir a extensão contra o portal real: o TJSE numera o
+  acórdão como **ano + sequencial SEM zeros à esquerda** (`2026` + `6743` = `20266743`), então tem de **5 a 9 dígitos**. Medido no
+  índice: 6.300 de 38.283 acórdãos (16,5%) têm menos de 9 — e a busca por `numero` (Node **e** Python) só aceitava 9 ou 12, recusando
+  todos eles com uma mensagem que dizia que "não há como buscar". A regra agora é 5 a 9 dígitos (acórdão) ou 12 (processo); não se
+  exige prefixo de ano (a busca por número só consulta o índice, e o selftest usa ids sintéticos). Leitura do inteiro teor,
+  parser, fecho e recibo já funcionavam com o número curto: conferido com uma requisição real (`20266743`, 2ª Câmara Cível, fecho e
+  data lidos). O texto "9 dígitos" saiu do README, dos guias e das descrições das ferramentas. **Fora deste repositório**, o lint de
+  citações do `peticao-rg` tinha o mesmo defeito, e mais grave: seu extrator só reconhecia `19|20` + 7 dígitos, então a citação de
+  um acórdão curto **passava do portão sem ficha e sem conferência**; corrigido (e o lint passou a procurar recibos também em
+  `~/.tjse-jurisprudencia/recibos`, onde a extensão os grava). Casos novos na paridade (8, 7 e 5 dígitos) e nos testes; 71 testes.
+  A suposição de "9 dígitos" veio de uma amostra e viveu em três lugares até ser medida no corpus inteiro.
+
 - **v1.0.1 (23/09/2026)** — `importar_pacote_tjse` em conexão lenta: o orçamento de tempo da chamada deixou de ter piso de 1 s
   (respeita o que foi pedido) e, se o download consumir o orçamento, a importação — que leva ~10 s e é retomável — ganha uma
   janela própria em vez de exigir uma terceira chamada. Teste de regressão com conexão simulada lenta (1ª chamada devolve o

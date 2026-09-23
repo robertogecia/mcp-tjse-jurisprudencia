@@ -137,8 +137,8 @@ async function teor(acordao, processo) {
   const lk = linkTeor(acordao);   // aceita a URL do inteiro teor colada
   if (lk) { processo = lk.processo; acordao = lk.acordao; }
   acordao = String(acordao || "").replace(/\D/g, "");
-  if (acordao.length === 12 && !processo) throw new PedidoRecusado("isso parece nº de PROCESSO (12 dígitos); o inteiro teor pede o nº do ACÓRDÃO (9 dígitos). Ache-o com `buscar_jurisprudencia_tjse(numero=…)`.");
-  if (!acordao) throw new PedidoRecusado("informe o nº do acórdão (9 dígitos, como sai na busca).");
+  if (acordao.length === 12 && !processo) throw new PedidoRecusado("isso parece nº de PROCESSO (12 dígitos); o inteiro teor pede o nº do ACÓRDÃO (ano + sequencial, de 5 a 9 dígitos). Ache-o com `buscar_jurisprudencia_tjse(numero=…)`.");
+  if (!acordao) throw new PedidoRecusado("informe o nº do acórdão (ano + sequencial, de 5 a 9 dígitos, como sai na busca).");
   let rec = lerRecibo(acordao);
   const doDisco = rec !== null;
   if (rec === null) {

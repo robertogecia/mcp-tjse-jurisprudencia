@@ -340,6 +340,9 @@ describe("índice local e busca", () => {
     assert.ok(b({ consulta: "multa", data_inicio: "31/02/2026" }).includes("day is out of range for month"));
     assert.ok(b({ consulta: "multa", data_inicio: "01/08/2026", data_fim: "01/03/2026" }).includes("posterior"));
     assert.ok(b({ numero: "0001234-56.2026.8.25.0001" }).includes("NÃO é 'não localizado'"));
+    // acórdão = ano + sequencial SEM zeros (20266743): 16,5% do índice real tem menos de 9 dígitos e a validação antiga os recusava
+    for (const n of ["20266743", "2026599", "20265", "202561964"]) assert.ok(!b({ numero: n }).startsWith("Pedido recusado"), n);
+    for (const n of ["2026", "2026000000", "20260000000", "12345678901234567890"]) assert.ok(b({ numero: n }).startsWith("Pedido recusado"), n);
     assert.ok(b({ consulta: "competência", em: "  " }).match(/resultado|Nada/));   // `em` vazio cai em 'tudo'
     assert.ok(b({ consulta: "multa", em: "xyz" }).includes("não conhece"));
     assert.equal(b({}), "Informe `consulta`, `grupos`, `numero` ou `cita`.");

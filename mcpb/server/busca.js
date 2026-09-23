@@ -221,8 +221,10 @@ function _buscar({ consulta = null, grupos = null, orgao = null, classe = null, 
   const where = []; let args = [];
   if (numero) {
     const n = numero.replace(/\D/g, "");
-    if (n.length !== 9 && n.length !== 12)
-      return `Pedido recusado: \`numero\` com ${n.length} dígitos. O TJSE numera por PROCESSO (12 dígitos, ex. 202600737656) e ACÓRDÃO (9 dígitos); o Boletim e o inteiro teor não trazem número CNJ, então não há como buscar por ele aqui. Isto NÃO é 'não localizado'.`;
+    // acórdão = ano + sequencial SEM zeros à esquerda ("2026" + "6743" = 20266743): 5 a 9 dígitos. Achado em 23/09/2026:
+    // 16,5% do índice tem acórdão com menos de 9 dígitos, e a validação antiga (só 9 ou 12) os recusava.
+    if (!((n.length >= 5 && n.length <= 9) || n.length === 12))
+      return `Pedido recusado: \`numero\` com ${n.length} dígitos. O TJSE numera por PROCESSO (12 dígitos, ex. 202600737656) e ACÓRDÃO (ano + sequencial, de 5 a 9 dígitos, ex. 202561964 ou 20266743); o Boletim e o inteiro teor não trazem número CNJ, então não há como buscar por ele aqui. Isto NÃO é 'não localizado'.`;
     where.push("(a.acordao=? OR a.processo=?)"); args.push(n, n);
   }
   let partes, q, di, df;
@@ -380,7 +382,7 @@ export function mapaCitacoes(referencia = null, limite = 15) {
     linhas.push("\nAcórdãos do próprio TJSE mais citados pelos pares (candidatos a julgado-líder):");
     for (const r of lid) linhas.push(`  processo ${r.ref}: citado por ${r.k} — ${dentro.has(r.ref) ? "no índice" : "FORA do índice (anterior ao período sincronizado)"}`);
     const fora = escalar(con, "SELECT COUNT(DISTINCT ref) n FROM citacoes WHERE tipo='tjse' AND ref NOT IN (SELECT processo FROM acordaos)");
-    linhas.push(`\n${fora} processo(s) do TJSE são citados pelos acórdãos do índice mas estão FORA dele (julgados anteriores ao período sincronizado): o grafo enxerga além da janela, mas para LER cada um é preciso o nº do ACÓRDÃO (9 dígitos), que a ementa citante não traz — busque-o na base que você assinar, ou no portal oficial, e confira aqui com \`obter_inteiro_teor_tjse\`.`);
+    linhas.push(`\n${fora} processo(s) do TJSE são citados pelos acórdãos do índice mas estão FORA dele (julgados anteriores ao período sincronizado): o grafo enxerga além da janela, mas para LER cada um é preciso o nº do ACÓRDÃO (ano + sequencial), que a ementa citante não traz — busque-o na base que você assinar, ou no portal oficial, e confira aqui com \`obter_inteiro_teor_tjse\`.`);
     linhas.push("Para ver quem cita um deles: `mapa_de_citacoes_tjse(referencia='Tema 1061')` ou o nº do processo.");
     return linhas.join("\n");
   }

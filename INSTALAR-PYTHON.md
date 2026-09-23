@@ -188,7 +188,7 @@ tribunal responder devagar. Cole no Terminal, ainda dentro da pasta do projeto:
 ```bash
 curl -LO https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest/download/base-secoes-tjse.tar.gz
 curl -LO https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest/download/SHA256SUMS.txt
-shasum -a 256 -c SHA256SUMS.txt
+grep base-secoes-tjse SHA256SUMS.txt | shasum -a 256 -c -
 tar -xzf base-secoes-tjse.tar.gz -C base/
 ```
 
@@ -244,7 +244,7 @@ de fonte literal.
 - **Zero resultado aqui nunca é "não existe no TJSE"** — é "não existe nesta janela". O servidor
   diz isso na própria resposta, e é para levar a sério antes de escrever "não localizado" numa peça.
 - Não substitui base paga. Se você tem JusRatio ou equivalente, use os dois: o julgado achado lá
-  se confere aqui pelo par processo (12 dígitos) + acórdão (9 dígitos).
+  se confere aqui pelo par processo (12 dígitos) + acórdão (ano + sequencial, de 5 a 9 dígitos).
 
 ## Avisos
 

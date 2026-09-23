@@ -1,6 +1,6 @@
 {
   "name": "tjse-jurisprudencia-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Jurisprudência do TJSE (Boletim Jurídico de Sergipe) como ferramentas MCP: índice local, inteiro teor com recibo e conferência literal de citação",
   "type": "module",
   "private": true,
