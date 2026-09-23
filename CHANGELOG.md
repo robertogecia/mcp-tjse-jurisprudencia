@@ -1,5 +1,24 @@
 # Histórico
 
+- **v1.0.0 (23/09/2026) — extensão `.mcpb` de um clique.** Porte do servidor Python para Node (`mcpb/`), no molde das extensões
+  do TJRO e do TRF1: o Claude Desktop já traz o Node (24.21, com `node:sqlite` e FTS5 — conferido no binário), então o
+  advogado baixa **um arquivo**, dá dois cliques e não instala mais nada. O Python continua sendo a **referência**; o Node
+  foi conferido contra ele sobre o corpus real (`mcpb/test/paridade/rodar.sh`): **38.283 acórdãos** com todos os campos do
+  parser, da ementa estruturada, das citações e das âncoras idênticos (hash a hash); o **índice reconstruído do HTML bruto**
+  idêntico tabela a tabela, inclusive o vocabulário (63.788 termos); **41 buscas** idênticas caractere a caractere; **2.420
+  conferências de citação** com veredito, alertas de atribuição (transcrição, alegação da parte, negação, entre aspas) e
+  contexto idênticos. As ~40 expressões regulares foram copiadas do Python **verbatim** e transpiladas por `pyre.js` (Python e
+  JS divergem em `\b`, `\w`, `\s`, `.`, `$` e escapes); o `html.unescape` do CPython foi reproduzido com a tabela HTML5 completa.
+  Diferenças de propósito: (a) `importar_pacote_tjse` **baixa e extrai sozinha** o pacote do release (URL fixa, sha256 conferido
+  contra `SHA256SUMS.txt`, só nomes `secoes/<n>-<n>[.pN].html.gz`, limites de tamanho) — ninguém abre Terminal para extrair
+  `.tar.gz`; (b) **orçamento de tempo por chamada** (45 s) em sincronização e importação, porque clientes MCP abortam respostas
+  longas: ambas são retomáveis; (c) trava entre processos por diretório atômico (Node não tem `flock`); (d) sem `node:sqlite`/FTS5
+  o servidor sobe e cada ferramenta explica o que fazer, em vez de morrer calado; (e) dados em `~/.tjse-jurisprudencia`, fora da
+  pasta da extensão (atualizar a extensão não apaga o índice). 70 testes (`npm test`), incluindo portal simulado com os fixtures
+  reais, inteiro teor com recibo, recusa de pacote adulterado/truncado/com nomes maliciosos e cliente MCP de verdade por stdio.
+  Pacote de HTML bruto agora com nome fixo (`base-secoes-tjse.tar.gz`), para `releases/latest/download/…` sempre funcionar.
+  README e `INSTALAR.md` reescritos para o `.mcpb` (o guia de Python virou `INSTALAR-PYTHON.md`).
+
 - **(22/09/2026)** — repositório tornado **PÚBLICO** por decisão do Roberto. `INSTALAR.md` reescrito do zero para
   quem nunca usou Terminal: explica o que é o Terminal e como abri-lo, como instalar Python e Git com cliques (não
   só comando), e deixa explícito, logo no início, que o projeto **baixa julgados de verdade** para o computador

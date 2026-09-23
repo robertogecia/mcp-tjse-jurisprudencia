@@ -1,55 +1,61 @@
-# tjse-jurisprudencia — servidor MCP de jurisprudência do TJSE
+# Jurisprudência TJSE no Claude — instalação em 1 clique
 
+[![tests](https://github.com/robertogecia/mcp-tjse-jurisprudencia/actions/workflows/test.yml/badge.svg)](https://github.com/robertogecia/mcp-tjse-jurisprudencia/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Pesquisa de acórdãos do **Tribunal de Justiça de Sergipe** para quem vai **citar em peça**: índice local pesquisável,
-inteiro teor com recibo, conferência literal de citação, órgão julgador e data lidos do fecho do acórdão.
-Funciona com qualquer cliente MCP (Claude Desktop, Claude Code e outros).
+Extensão MCP que dá ao **Claude Desktop** a capacidade de **pesquisar acórdãos de 2º grau do Tribunal de Justiça de
+Sergipe** e, antes de você citar em peça, **conferir se a frase está literalmente no acórdão e de quem ela é** (do TJSE,
+de outro tribunal transcrito no voto, do voto vencido, da parte...). Sem login, sem resolver captcha e sem programar.
 
-Não é produto oficial do TJSE. Toda saída é rascunho: quem assina a peça confere.
+> **Esta extensão BAIXA JULGADOS de verdade para o seu computador** e pesquisa nessa cópia local — não é uma busca "ao
+> vivo". Reserve **cerca de 80 MB de disco por mês de Boletim (~1 GB para um ano; recomendado: 2 GB livres)**.
 
-## Instalar
+## Instalar (5 minutos)
 
-> **Nunca usou o Terminal? Comece pelo [guia de instalação passo a passo](INSTALAR.md)** — explica
-> onde clicar, o que colar e o que cada coisa faz, sem exigir conhecimento técnico. Ele também
-> explica que este projeto **baixa julgados de verdade** para o seu computador (não é uma busca
-> "ao vivo") e **quanto espaço em disco reservar** para isso — em torno de 1 GB para um ano de
-> Boletim Jurídico. O resumo abaixo é para quem já tem familiaridade com linha de comando.
+### ⬇️ [BAIXE AQUI O ARQUIVO DE INSTALAÇÃO (`Jurisprudencia-TJSE.mcpb`)](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest/download/Jurisprudencia-TJSE.mcpb)
 
-```bash
-git clone https://github.com/robertogecia/mcp-tjse-jurisprudencia.git tjse-jurisprudencia && cd tjse-jurisprudencia
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python servidor_tjse.py --selftest        # offline, sobre fixtures reais anonimizados
-```
+> **⚠️ NÃO use o botão verde "Code → Download ZIP" desta página.** Aquele zip é o código-fonte e **não instala**. O que
+> instala é só o **`.mcpb`** do link acima.
 
-Depois, ligue ao Claude Code:
+Depois de baixar:
 
-```bash
-claude mcp add tjse_jurisprudencia -- /caminho/tjse-jurisprudencia/.venv/bin/python /caminho/tjse-jurisprudencia/servidor_tjse.py
-```
+1. **Dê dois cliques** no arquivo `Jurisprudencia-TJSE.mcpb`. O Claude Desktop abre na tela de instalação: clique em
+   **Instalar**. *Se nada acontecer*, abra **Configurações → Extensões** e **arraste o arquivo** para essa janela.
+2. **Abra uma conversa nova** e peça: ***"Importe o pacote do TJSE."*** (baixa ~80 MB de julgados já prontos, sem tocar o
+   site do tribunal; leva poucos minutos).
+3. Confira com: ***"Rode o diagnóstico do TJSE."*** — deve mostrar cerca de 38 mil acórdãos. Pronto: pergunte o que quiser.
 
-ou ao Claude Desktop, em `claude_desktop_config.json`:
+Não precisa instalar mais nada: o Claude Desktop já traz o Node.js necessário.
 
-```json
-{ "mcpServers": { "tjse_jurisprudencia": {
-    "command": "/caminho/tjse-jurisprudencia/.venv/bin/python",
-    "args": ["/caminho/tjse-jurisprudencia/servidor_tjse.py"] } } }
-```
-
-Por fim, monte o índice — **ou baixe pronto**: um pacote com o HTML bruto do Boletim (cópia de publicação oficial e
-aberta, sem nome de parte) está anexado à [release mais recente](https://github.com/robertogecia/mcp-tjse-jurisprudencia/releases/latest);
-extraia em `base/secoes/` e peça ao Claude "importe o pacote do TJSE" (`importar_pacote_tjse`, zero rede). Sem o
-pacote, peça "sincronize o Boletim do TJSE dos últimos 12 meses" e repita até a resposta dizer que o período está completo.
+> Requisitos: **Claude Desktop atualizado**, no **Mac ou Windows**. **Nunca usou uma extensão?** O
+> **[guia passo a passo, sem Terminal](INSTALAR.md)** explica cada clique.
 
 **Se não funcionar:**
 
 | Sintoma | O que é |
 |---|---|
-| As ferramentas não aparecem depois de instalado | Confira a versão do `mcp`: precisa ser `<2`. A série 2.x renomeou `FastMCP` e o registro falha **em silêncio** — o servidor sobe, conecta, e não expõe nada. |
-| Índice sumiu ou veio corrompido | `TJSE_DIR_DADOS` (ou a pasta padrão do projeto) estava dentro de pasta sincronizada em nuvem (OneDrive, Dropbox, iCloud). Aponte para fora dela. |
-| `⚠ EDIÇÕES INCOMPLETAS` que nunca some | Pode ser edição fora da janela pedida — o parâmetro de `sincronizar_boletim_tjse` é `meses`, contado para trás a partir de hoje. Peça uma janela maior. |
-| A busca deu zero resultado | **Nunca é "não existe no TJSE"** — é "não existe nas edições sincronizadas". Confira `diagnostico_tjse` antes de concluir qualquer coisa. |
+| Arrastei o zip do GitHub e não instalou | Era o código-fonte. Baixe o `.mcpb` no link acima. |
+| O Claude diz que não tem a ferramenta | Abra uma **conversa nova** (conversa antiga não enxerga extensão instalada depois) e confira se a extensão está **ativada** em Configurações → Extensões. |
+| A busca responde "índice local VAZIO" | Falta o passo 2: *"Importe o pacote do TJSE."* |
+| "este ambiente não tem o SQLite…" | O Claude Desktop está antigo: atualize-o. |
+| A busca deu zero resultado | **Nunca é "não existe no TJSE"** — é "não existe no que você baixou". Rode o diagnóstico antes de concluir qualquer coisa. |
 | Preciso resolver um captcha para pesquisar | Não. O formulário oficial com Cloudflare Turnstile nunca é usado nem contornado — veja abaixo por quê. |
+
+### Quanto espaço em disco
+
+| O que | Tamanho medido |
+|---|---|
+| A extensão | ~3 MB |
+| Cada edição/mês do Boletim (índice + texto bruto) | ~80 MB |
+| 1 ano completo de julgados | ~1 GB |
+| **Folga recomendada** | **2 GB livres** |
+
+Os dados ficam em `~/.tjse-jurisprudencia` (Mac) ou `%USERPROFILE%\.tjse-jurisprudencia` (Windows), **fora da extensão**:
+atualizar a extensão não apaga o que você baixou, e apagar a pasta libera o espaço.
+
+### Prefere o Terminal ou o Claude Code?
+
+Há também o servidor em Python (mesmo comportamento, conferido contra o mesmo corpus): **[INSTALAR-PYTHON.md](INSTALAR-PYTHON.md)**.
 
 ## Por que ele é assim
 
@@ -71,6 +77,7 @@ sob demanda e guardado como **recibo** (com sha256), de modo que conferir uma ci
 
 | Tool | O que faz | Rede |
 |---|---|---|
+| `importar_pacote_tjse` | monta o índice a partir de um pacote pronto de HTML bruto (na extensão, baixa-o do GitHub com hash conferido); zero requisição ao portal | GitHub |
 | `sincronizar_boletim_tjse` | baixa edições recentes para o índice; retomável; até 14 requisições por chamada | sim |
 | `buscar_jurisprudencia_tjse` | busca local: `grupos` de sinônimos (OU dentro, E entre), singular/plural automático, `$` radical, **busca por parte da ementa** (`em=questao,tese`), **filtro pelo que o acórdão cita** (`cita="Tema 1061"`), filtros por órgão, classe, relator, número e data, ordenação por relevância | não |
 | `mapa_de_citacoes_tjse` | grafo: precedentes qualificados mais aplicados, acórdãos do TJSE que as câmaras mais reusam (inclusive **anteriores ao período sincronizado**) e quem cita o quê | não |
@@ -145,22 +152,35 @@ Em `integracoes/` há material opcional para quem usa Claude Code: uma skill aut
 
 6 s entre requisições · 20 por 10 min · 150 por dia · 429/403 → pausa de 6 h sem retentativa · marca de verificação
 anti-robô na resposta → pausa de 24 h, nunca contornar · outro erro → 30 min · estado do disjuntor ilegível → pausa (fail-closed).
-O estado fica em disco sob `flock`, compartilhado entre processos. O cliente se identifica com User-Agent próprio
-(`tjse-jurisprudencia-mcp/<versão>`); `TJSE_USER_AGENT` troca, por conta e risco de quem troca. Não rode scripts soltos
-contra o portal fora do disjuntor, e não suba os limites: o servidor do tribunal é pequeno e é de todos.
+Depois de uma recusa do portal o ritmo **aperta sozinho** (escada de 4 degraus) e só afrouxa depois de 100 consultas limpas.
+Timeout ou queda de conexão **não** armam o disjuntor (seção de câmara cível passa de 2 MB; timeout é esperado). O estado
+fica em disco, compartilhado entre processos (`flock` no Python; trava por diretório atômico no Node). O cliente se
+identifica com User-Agent próprio (`tjse-jurisprudencia-mcp/<versão>`); `TJSE_USER_AGENT` troca, por conta e risco de quem
+troca. Não rode scripts soltos contra o portal fora do disjuntor, e não suba os limites: o servidor do tribunal é pequeno e é de todos.
 
 ## Configuração avançada
 
-`TJSE_DIR_DADOS` (opcional) diz onde ficam índice, recibos e disjuntor; o padrão é a pasta do script — prefira um
-lugar fora de pasta sincronizada em nuvem (razão na tabela de sintomas acima). Interromper a sincronização no meio
-não corrompe nada: o que entrou não é rebaixado, e seção incompleta não entra pela metade.
+Variáveis de ambiente (para quem roda o servidor Python ou lança a extensão à mão): `TJSE_DIR_DADOS` diz onde ficam índice,
+recibos e disjuntor (padrão: `~/.tjse-jurisprudencia` na extensão; a pasta do script no Python) — prefira um lugar **fora de
+pasta sincronizada em nuvem**. `TJSE_COMPLEMENTOS` declara outras bases que você assina. `TJSE_MCP_SEM_AVISO_ATUALIZACAO=1`
+desliga a consulta de versão nova. `TJSE_ORCAMENTO_CHAMADA_S` (extensão) muda o limite de tempo por chamada (padrão 45 s).
+Interromper a sincronização no meio não corrompe nada: o que entrou não é rebaixado, e seção incompleta não entra pela metade.
 
 ## Desenvolvimento
 
-`--selftest` roda offline sobre fixtures reais (anonimizados), com estado em pasta temporária; blocos `R*` são regressões de
-uso real, `RT*` e `RTB*` dos dois red teams. `--selftest --online` faz uma requisição real. Parser corrigido? **Suba `PARSER_VERSAO`**:
-o índice é refeito do HTML bruto guardado em `base/secoes/`, sem rede. Protocolo medido: `references/protocolo-boletim.md`.
-Relatórios de red team: `references/`. Histórico: `CHANGELOG.md`.
+O projeto tem **duas implementações do mesmo comportamento**: o servidor Python (`servidor_tjse.py`, a **referência**) e a
+extensão Node (`mcpb/`, o que vai no `.mcpb`). Elas guardam dados em pastas distintas e não devem ser apontadas para a mesma.
+
+- **Python:** `python3 servidor_tjse.py --selftest` roda offline sobre fixtures reais anonimizados (blocos `R*`: regressões de
+  uso real; `RT*`, `RTB*`, `RTC*`: red teams). `--selftest --online` faz uma requisição real. Parser corrigido? **Suba
+  `PARSER_VERSAO`**: o índice é refeito do HTML bruto em `base/secoes/`, sem rede.
+- **Node:** `cd mcpb && npm ci && npm test` (70 testes, incluindo portal simulado e cliente MCP de verdade). Empacotar:
+  `npx @anthropic-ai/mcpb@latest pack . Jurisprudencia-TJSE.mcpb` a partir de uma cópia com `npm ci --omit=dev`.
+- **Paridade:** `mcpb/test/paridade/rodar.sh` compara Python × Node sobre o corpus real — parsers acórdão por acórdão, o
+  índice reconstruído tabela a tabela, uma bateria de buscas caractere a caractere e milhares de conferências de citação.
+  Roda numa cópia, sem tocar o índice original. Qualquer mudança de comportamento tem de passar por aqui.
+
+Protocolo medido do Boletim: `references/protocolo-boletim.md`. Relatórios de red team: `references/`. Histórico: `CHANGELOG.md`.
 
 ## Autor
 

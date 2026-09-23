@@ -1,0 +1,76 @@
+{
+  "manifest_version": "0.2",
+  "name": "tjse-jurisprudencia",
+  "display_name": "Jurisprudência TJSE",
+  "version": "1.0.0",
+  "description": "Pesquisa de acórdãos do TJSE (Boletim Jurídico de Sergipe), com conferência literal de citação, direto no Claude.",
+  "long_description": "Adiciona ao Claude sete ferramentas para a jurisprudência de 2º grau do Tribunal de Justiça de Sergipe. IMPORTANTE: esta extensão BAIXA JULGADOS de verdade para o seu computador e guarda uma cópia local pesquisável (em ~/.tjse-jurisprudencia) — não é uma busca ao vivo. Reserve cerca de 80 MB de disco por mês de Boletim (~1 GB para um ano; recomendado: 2 GB livres). A fonte é o Boletim Jurídico de Sergipe, publicação oficial e aberta do tribunal (o formulário oficial de pesquisa exige verificação anti-robô e NÃO é usado nem contornado). Depois de instalar, peça ao Claude: \"importe o pacote do TJSE\" (baixa um pacote pronto, sem tocar o portal) ou \"sincronize o Boletim do TJSE dos últimos 12 meses\". **importar_pacote_tjse** baixa o pacote pronto do GitHub deste projeto (hash conferido) e monta o índice. **sincronizar_boletim_tjse** baixa edições do Boletim direto do portal, devagar e com limite de ritmo. **buscar_jurisprudencia_tjse** pesquisa no índice local (zero rede) por `grupos` de sinônimos, texto livre, parte da ementa estruturada (questão, tese, razões), órgão, classe, relator, data ou pelo que o acórdão CITA (Tema, Súmula, IRDR); abre com um panorama do resultado. **obter_inteiro_teor_tjse** traz o inteiro teor com órgão e data lidos do FECHO do acórdão e grava um recibo com sha256. **verificar_citacao_tjse** confere se um trecho está literalmente no acórdão e avisa DE QUEM é a frase: transcrição de outro tribunal, voto divergente, alegação da parte, trecho entre aspas ou negação. **mapa_de_citacoes_tjse** mostra os precedentes que as câmaras mais citam. **diagnostico_tjse** explica o estado do índice e do limite de ritmo. AVISO: integração não-oficial, mantida por um advogado (não pelo TJSE). Cobre só 2º grau e só as edições baixadas; zero resultado NUNCA significa que o TJSE não julgou. Toda saída é rascunho: confira número, relator, órgão e data antes de citar em peça.",
+  "author": {
+    "name": "Roberto Grécia Bessa (OAB/RO 7865-A)"
+  },
+  "license": "MIT",
+  "keywords": [
+    "jurisprudência",
+    "tjse",
+    "sergipe",
+    "acórdão",
+    "jurídico",
+    "advocacia",
+    "direito"
+  ],
+  "privacy_policies": [
+    "https://www.tjse.jus.br/"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "importar_pacote_tjse",
+      "description": "Baixa o pacote pronto de julgados do GitHub (hash conferido) e monta o índice local, sem tocar o portal do tribunal. É o caminho rápido para quem acabou de instalar."
+    },
+    {
+      "name": "sincronizar_boletim_tjse",
+      "description": "Baixa edições do Boletim Jurídico direto do portal do TJSE para o índice local, devagar e com limite de ritmo. Retomável: repita até dizer 'período completo'."
+    },
+    {
+      "name": "buscar_jurisprudencia_tjse",
+      "description": "Pesquisa acórdãos no índice local (zero rede): grupos de sinônimos, texto livre, parte da ementa, órgão, classe, relator, data, ou o que o acórdão cita. Abre com panorama do resultado."
+    },
+    {
+      "name": "obter_inteiro_teor_tjse",
+      "description": "Inteiro teor do acórdão com órgão e data lidos do fecho; grava recibo com sha256 para conferência posterior."
+    },
+    {
+      "name": "verificar_citacao_tjse",
+      "description": "Confere se um trecho está literalmente no acórdão antes de ir entre aspas e avisa de quem é a frase (transcrição, voto divergente, alegação da parte, entre aspas, negação)."
+    },
+    {
+      "name": "mapa_de_citacoes_tjse",
+      "description": "Grafo de citações: precedentes qualificados e acórdãos do próprio TJSE mais reusados pelas câmaras, inclusive anteriores ao período baixado."
+    },
+    {
+      "name": "diagnostico_tjse",
+      "description": "Explica o estado do índice, onde ficam os dados e o limite de ritmo. Não consulta o portal."
+    }
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=22.13.0"
+    }
+  }
+}
