@@ -1,5 +1,11 @@
 # Histórico
 
+- **v1.2.1 (06/10/2026) — POSIÇÃO NO JULGADO, obiter no recibo e uma correção que calava os avisos.** `verificar_citacao_tjse`
+  diz onde a frase está (ementa por seção do CNJ, fecho, relatório, fundamentação ou dispositivo do voto); medido às cegas:
+  **99% numa validação de 60 trechos novos** (91% na amostra de ajuste). O recibo leva `trechos_obiter` para o lint da
+  `peticao-rg`. **Correção:** trecho com "nº" não era localizado no texto (a busca dobrava "º" diferente do texto), e aspas,
+  alegação, negação e obiter ficavam calados nele — 16 de 444 janelas medidas. "Ainda que assim não fosse" deixou de contar como
+  negação. Python v0.9.1 e Node v1.2.1 em paridade.
 - **v1.2.0 (06/10/2026) — regras de atribuição do TJRO (aspas, alegação, negação) e o alerta OBITER DICTUM?.** `verificar_citacao_tjse`
   passa a usar o mesmo bloco de regras que o TJRO (v1.13/1.15), o STJ e o TRT14 já usam: ENTRE ASPAS por pareamento das aspas no
   documento inteiro (curvas e retas numa pilha só, reta orientada pelo vizinho, « »), ALEGAÇÃO DA PARTE por verbo de relato com a parte

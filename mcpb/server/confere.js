@@ -5,8 +5,10 @@ import { pyre, escapaRe } from "./pyre.js";
 import { norm, palavras } from "./texto.js";
 // v1.2.0 (06/10/2026): regras de atribuição do TJRO v1.13/1.15, pelo bloco já portado ao TRT14 (atribuicao13.js, paridade provada)
 import { norm1, alegacaoDaParte, negacaoEscopo, entreAspas, obiterAntes } from "./atribuicao13.js";
+import { posicaoTjse } from "./posicao.js";
 
-const normalizarCasamento = (t) => (norm(t).match(/[a-z0-9]+/g) || []).join(" ");
+// a MESMA dobra do texto (norm1): com norm() o "º" de "nº" não casava (06/10/2026)
+const normalizarCasamento = (t) => (norm1(t).match(/[a-z0-9]+/g) || []).join(" ");
 /** _faixa_norm: posição do trecho em norm1(bruto) (mesmo comprimento do bruto), ocorrência mais próxima do casamento oficial. */
 export function faixaNorm(nt, fragmentos, pertoDe = 0.0) {
   const lista = fragmentos.map((f) => normalizarCasamento(f).split(" ").filter(Boolean)).filter((ps) => ps.length);
@@ -162,8 +164,11 @@ export function conferir(texto, trecho, inicioVoto = 0) {
   const ob = !emTranscricao && fx && !alertas.some((a) => a.startsWith("ENTRE ASPAS")) ? obiterAntes(nt, fx[0], fx[1], bruto) : null;
   if (ob)
     alertas.push(`OBITER DICTUM?: o trecho vem sob «${ob}» — raciocínio hipotético ou fundamento alternativo; o resultado do julgado não dependeu dele. Vale como reforço, não como ratio decidendi; cite dizendo que é obiter.`);
-  return { ok: true, alertas, contexto: tn.slice(Math.max(0, ini0 - 120), pos + 120).replace(/\s+/g, " ") };
+  // v1.2.1: POSIÇÃO NO JULGADO (porte do TJRO 1.15). posicao.js importa daqui funções declaradas (hoisted): o ciclo é seguro
+  const posicao = fx ? posicaoTjse(bruto, fx[0] + Math.trunc((fx[1] - fx[0]) / 2)) : "";
+  return { ok: true, alertas, posicao, contexto: tn.slice(Math.max(0, ini0 - 120), pos + 120).replace(/\s+/g, " ") };
 }
+
 
 /** Posição no texto BRUTO equivalente a `posNorm` no texto normalizado. norm() só colapsa e remove: a razão entre os
  * comprimentos é estável, então caminha-se do palpite proporcional até casar o contexto. */

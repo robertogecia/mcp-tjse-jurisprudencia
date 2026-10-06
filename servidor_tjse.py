@@ -86,7 +86,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.9.0"
+VERSAO = "0.9.1"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -1226,6 +1226,7 @@ def _campos_de_custodia(rec: dict) -> dict:
             # lint, 21/09/2026, L1: "nº 7" virava "n 7" aqui e "no 7" lá).
             "trechos_transcritos": [corpo[_bruto(corpo, tn, a): _bruto(corpo, tn, b)] for a, b in faixas_transcritas(tn, ini)],
             "trecho_divergente": corpo[_bruto(corpo, tn, div[0]):] if div else "",
+            "trechos_obiter": _trechos_obiter(corpo),
             "normalizacao": "trechos em bruto, recortados de `texto` — normalize com a sua própria função"}
 
 
@@ -1365,7 +1366,9 @@ def conferir(texto: str, trecho: str, inicio_voto: int = 0) -> dict[str, Any]:
     if ob:
         alertas.append(f"OBITER DICTUM?: o trecho vem sob «{ob}» — raciocínio hipotético ou fundamento alternativo; o resultado do "
                        "julgado não dependeu dele. Vale como reforço, não como ratio decidendi; cite dizendo que é obiter.")
-    return {"ok": True, "alertas": alertas, "contexto": re.sub(r"\s+", " ", tn[max(0, ini0 - 120): pos + 120])}
+    # v0.9.1: POSIÇÃO NO JULGADO (porte do TJRO 1.15)
+    posicao = _posicao_tjse(bruto, fx[0] + (fx[1] - fx[0]) // 2) if fx else ""
+    return {"ok": True, "alertas": alertas, "posicao": posicao, "contexto": re.sub(r"\s+", " ", tn[max(0, ini0 - 120): pos + 120])}
 
 
 
@@ -1484,7 +1487,7 @@ def _alegacao_da_parte(tn: str, ini0: int, fim: int | None = None, bruto: str | 
 # dele. Adjetivo solto ("inexistente", "indevido") e "NÃO CONHECIDO." de ementa não contam.
 _RE_NEG_OPERADOR = re.compile(r"(?<![a-z0-9])(?:nao|jamais|nunca|nem|descabe|descabid[oa]s?|incabive(?:l|is)|afasta-se|afasto|afastad[oa]s?|rejeita-se|rejeito|rejeitad[oa]s?|nego|negou|negar|nega-se|negam|improcede|julg(?:ou|o|ar|aram|ada|ado|ados|adas)\s+improcedentes?|inexist(?:e|em|ir|iu|indo)|carece|carecem|impossibilidade de|sem razao|sem razoes)(?![a-z0-9])", _A)
 # "não havendo dúvida de que X" / "não há dúvida de que X" afirmam X (achado no STJ, 05/10/2026)
-_RE_NEG_FALSA = re.compile(r"\s*(?:obstante|so\b|apenas|somente|se\s+confunde|(?:havendo|ha|houve|resta|restam|restando|pairam?)\s+(?:qualquer\s+|mais\s+)?duvidas?)", _A)
+_RE_NEG_FALSA = re.compile(r"\s*(?:obstante|so\b|apenas|somente|se\s+confunde|fosse\b|(?:havendo|ha|houve|resta|restam|restando|pairam?)\s+(?:qualquer\s+|mais\s+)?duvidas?)", _A)
 _RE_QUEBRA_ORACAO = re.compile(r"[.;:]|,\s*(?:mas|e|ou|que|o que|de forma|de modo|sendo|alem|conforme|porque|pois|porquanto|embora|ainda|razao pela|motivo pelo|[a-z]+ndo)(?![a-z0-9])|\smas\s", _A)
 _NEGACAO_JANELA, _NEGACAO_ALCANCE_MIN = 80, 3
 
@@ -1583,7 +1586,9 @@ def _entre_aspas(bruto: str, tn: str, ini0: int, fim: int, cit=None) -> bool:
 
 
 def _normalizar_casamento(t: str) -> str:
-    return " ".join(re.findall(r"[a-z0-9]+", norm(t)))
+    # a MESMA dobra do texto (_norm1): com norm() o "º" de "nº" sumia aqui e virava "o" lá, e o trecho com "nº" não era
+    # localizado — aspas, alegação, negação e obiter ficavam calados (achado em 06/10/2026)
+    return " ".join(re.findall(r"[a-z0-9]+", _norm1(t)))
 
 
 def _faixa_norm(nt: str, fragmentos: list[str], perto_de: float = 0.0) -> tuple[int, int] | None:
@@ -1615,6 +1620,149 @@ def _faixa_norm(nt: str, fragmentos: list[str], perto_de: float = 0.0) -> tuple[
 _RE_OBITER = re.compile(r"(?<![a-z0-9])(?:ainda que assim nao fosse|se assim nao fosse|(?:ainda|mesmo) que (?:se )?(?:admitisse(?:mos)?|superad[ao]s?|ultrapassad[ao]s?|afastad[ao]s?|entendesse(?:mos)?|considerasse(?:mos)?|fosse|houvesse|pudesse)|a titulo de (?:argumentacao|reforco|ilustracao|obiter dictum)|(?:apenas|somente|so) para argumentar|ad argumentandum(?: tantum)?|por amor ao debate|obiter dictum|caso se entendesse)(?![a-z0-9])", _A)
 _OBITER_JANELA, _OBITER_CABECA = 400, 0.4
 
+
+
+def _trechos_obiter(texto: str, ini: int = 0, fim: int | None = None) -> list[str]:
+    """Recibo (06/10/2026, espelho de faixasObiter do TJRO 1.16): da marca de obiter ao fim da frase, em BRUTO, fora de citação
+    entre aspas (lá a marca é de quem o tribunal cita). O lint da peticao-rg avisa quando a frase citada está num destes."""
+    fim = len(texto) if fim is None else fim
+    nt = _norm1(texto)
+    cit = [c for c in _trechos_citados(texto) if c[1] > ini and c[0] < fim]
+    out, ate = [], -1
+    for m in _RE_OBITER.finditer(nt, ini):
+        if m.start() >= fim:
+            break
+        if m.start() < ate or any(a <= m.start() < b for a, b in cit):
+            continue
+        b = min(fim, m.start() + 600)
+        for f in re.finditer(r"[.;!?][\"”’)\]]?\s+(?=[\"“‘(\[]?[A-ZÀ-Ý0-9])", texto[m.end():b]):
+            p = m.end() + f.start()
+            if f.group(0)[0] == "." and re.search(r"(?:^|[^a-z0-9])(?:art|arts|n|no|nos|fl|fls|id|ids|des|dr|min|rel|inc|p|pp|proc|cf|res|sum|v|vol|al|ss)$", nt[max(0, p - 8):p]):
+                continue
+            b = p + 1
+            break
+        out.append(texto[m.start():b])
+        ate = b
+    return out
+
+# ---- POSIÇÃO NO JULGADO (06/10/2026, porte do TJRO 1.15) ----
+_RE_DISPOSITIVO_VOTO = re.compile(r"(?<![a-z0-9])(?:ante o exposto|diante do exposto|pelo exposto|em face do exposto|por todo o exposto|posto isso|posto isto|isso posto|isto posto|por tais razoes|por essas razoes|por todas essas razoes|com essas consideracoes|com tais consideracoes|ex positis|forte nessas razoes)(?![a-z0-9])", _A)
+_RE_RESULTADO_VOTO = re.compile(r"(?<![a-z0-9])(?:nego|dou|conheco|nao conheco|julgo|rejeito|acolho|mantenho|reformo|provimento|provido|desprovido|improcedente|procedente|prejudicado|homologo|declaro|defiro|indefiro|concedo|denego|extingo|anulo|casso|confirmo|voto (?:pelo|por|no sentido))(?![a-z0-9])", _A)
+_RE_FIM_VOTO_POS = re.compile(r"\be (?:como|o) (?:voto|meu voto)\b", _A)
+_ROTULO_SECAO = {
+    "caso em exame": "ementa › I. CASO EM EXAME — resumo do caso, não tese",
+    "questao em discussao": "ementa › II. QUESTÃO EM DISCUSSÃO — a pergunta posta, não a resposta",
+    "razoes de decidir": "ementa › III. RAZÕES DE DECIDIR — fundamento que a ementa apresenta como razão de decidir (candidato a ratio; confira no voto se o resultado dependeu dele)",
+    "dispositivo e tese": "ementa › IV. DISPOSITIVO E TESE — resultado e tese enunciada",
+    "dispositivo": "ementa › IV. DISPOSITIVO — resultado do julgamento",
+    "cauda": "ementa › parte final (dispositivos e jurisprudência citados, resumo) — referência, não tese",
+}
+
+
+
+
+_RE_SECAO_EMENTA_N1 = re.compile(r"(?<![a-z0-9])(?:(i{1,3}|iv|v)[ \t\n\r\f\v]*[.)-]?[ \t\n\r\f\v]*)?(caso em exame|quest(?:ao|oes) em discussao|razoes de decidir|dispositivos? e teses?|dispositivo)(?![a-z0-9])", _A)
+_RE_CAUDA_EMENTA = re.compile(r"\b(?:Dispositivos? relevantes? citados?|Jurisprud[êe]ncia relevante citada|Legisla[çc][ãa]o relevante citada|Resumo em linguagem simples|RESUMO[ \t]*:)", _A)
+
+
+def _secoes_da_ementa(texto: str, ini: int, fim: int) -> list[dict]:
+    """Seções da ementa do CNJ em [ini, fim): "I. CASO EM EXAME"… com número romano em qualquer caixa ("IV. Dispositivo e
+    tese"), ou sem número quando o nome abre a linha e fecha com ".", ":", quebra ou o item numerado ("CASO EM EXAME\n1.").
+    Busca sobre _norm1 (1:1); a linha e o fecho do cabeçalho se conferem no texto bruto (06/10/2026, medição cega)."""
+    nt = _norm1(texto[ini:fim]); seg = texto[ini:fim]
+    marcas = []
+    for m in _RE_SECAO_EMENTA_N1.finditer(nt):
+        if not m.group(1):
+            antes = seg[:m.start(2)].rstrip(" \t")
+            depois = seg[m.end(2):m.end(2) + 4].lstrip(" \t")
+            if not (antes == "" or antes.endswith("\n")) or not (depois[:1] in (".", ":", "\n") or (depois[:1] != "" and depois[:1] in "0123456789")):
+                continue
+        nome = m.group(2)
+        nome = re.sub(r"^quest(?:ao|oes) em discussao$", "questao em discussao", nome)
+        nome = re.sub(r"^dispositivos? e teses?$", "dispositivo e tese", nome)
+        if marcas and marcas[-1]["nome"] == nome and ini + m.start() - marcas[-1]["a"] < 40:
+            continue
+        marcas.append({"nome": nome, "a": ini + m.start()})
+    if not marcas:
+        return []
+    mc = _RE_CAUDA_EMENTA.search(seg)
+    cauda = mc.start() if mc else -1
+    out = []
+    for i, mk in enumerate(marcas):
+        b = marcas[i + 1]["a"] if i + 1 < len(marcas) else (ini + cauda if (cauda >= 0 and ini + cauda > mk["a"]) else fim)
+        out.append({"nome": mk["nome"], "a": mk["a"], "b": b})
+    if cauda >= 0 and ini + cauda > out[-1]["a"]:
+        out.append({"nome": "cauda", "a": ini + cauda, "b": fim})
+    return out
+
+def _posicao_generica(texto: str, meio: int, ementa=None, relatorio=None, votos=(), outros=(), fecho=None, cabecalho=None,
+                      certidao=None) -> str:
+    """POSIÇÃO NO JULGADO (06/10/2026, porte do TJRO 1.15): onde a frase está, a partir das faixas que este servidor já sabe
+    calcular. `votos` = [(a, b)] do voto condutor; `outros` = [(a, b, rótulo)] de votos de outros julgadores. Localizador,
+    não juiz: a decisão ratio × dictum continua sendo de quem lê."""
+    dentro = lambda r: r is not None and r[0] <= meio < r[1]
+    if dentro(cabecalho):
+        return "cabeçalho da peça (autuação)"
+    if dentro(ementa):
+        secs = _secoes_da_ementa(texto, ementa[0], ementa[1])
+        s = next((x for x in secs if x["a"] <= meio < x["b"]), None)
+        return (_ROTULO_SECAO.get(s["nome"]) or s["nome"]) if s else "ementa (modelo antigo, sem seções) — síntese do julgado"
+    if dentro(fecho):
+        return "acórdão/fecho (o que o colegiado proclamou)"
+    if dentro(certidao):
+        return "certidão de julgamento (quem votou e como; não é fundamentação)"
+    if dentro(relatorio):
+        return "RELATÓRIO — narração do processo e das teses das partes, não decisão"
+    for a, b, rot in outros:
+        if a <= meio < b:
+            return f"{rot} — não é o voto condutor (vencido, vista, vogal ou ementa proposta em outro voto); veja quem venceu"
+    for a, b in votos:
+        if a <= meio < b:
+            tn = _norm1(texto[a:b])
+            disp = -1
+            for m in _RE_DISPOSITIVO_VOTO.finditer(tn):
+                if _RE_RESULTADO_VOTO.search(tn[m.start():m.start() + 300]):
+                    disp = a + m.start()
+            if disp >= 0 and meio >= disp:
+                return "DISPOSITIVO do voto — é o que foi decidido, não a razão de decidir"
+            if disp >= 0:
+                return (f"fundamentação do voto condutor, antes do dispositivo (o dispositivo começa {disp - meio} caracteres adiante, em "
+                        f"«{re.sub(r'[ \t\n\r\f\v]+', ' ', texto[disp:disp + 60])}…»)")
+            return "fundamentação do voto condutor (dispositivo não localizado por fórmula)"
+    return ""
+
+
+def _posicao_tjse(bruto: str, meio: int) -> str:
+    """POSIÇÃO NO JULGADO no inteiro teor do TJSE (corpo sem a qualificação): EMENTA → fecho "ACORDAM… Estado de Sergipe" →
+    RELATÓRIO → VOTO; o que vem depois de um sinal de divergência é voto de outro julgador."""
+    nt = _norm1(bruto)
+    n = len(bruto)
+    m_rel = re.search(r"\bRELAT[ÓO]RIO\b", bruto, _A)
+    rel = m_rel.start() if m_rel else -1
+    # fecho: "acordam… Estado de Sergipe", ou (medição cega 06/10) o cabeçalho ACÓRDÃO seguido de "Vistos"/"Acordam", ou
+    # "Acordam os membros/desembargadores/integrantes" — sempre antes do relatório
+    cands = [m.start() for m in re.finditer(r"(?<![a-z0-9])acordam(?![a-z0-9])", nt) if "estado de sergipe" in nt[m.start():m.start() + 450]]
+    cands += [m.start() for m in re.finditer(r"(?<![a-z0-9])acordao[ \t\n\r\f\v]+(?:vistos|acordam)(?![a-z0-9])", nt)]
+    cands += [m.start() for m in re.finditer(r"(?<![a-z0-9])acordam[ \t\n\r\f\v]+(?:os|as)[ \t\n\r\f\v]+(?:membros|desembargador|integrantes|juiz|juizes|magistrad)", nt)]
+    cands = [c for c in cands if rel < 0 or c < rel]
+    fecho_ini = min(cands) if cands else -1
+    m_voto = re.compile(r"\bVOTO\b", _A).search(bruto, max(0, rel))
+    voto = m_voto.start() if (m_voto and rel >= 0) else -1
+    fim_em = min(x for x in (fecho_ini, rel, voto, n) if x >= 0)
+    ementa = (0, fim_em) if re.match(r"[ \t\n\r\f\v]*EMENTA\b", bruto, _A) else None
+    fecho = (fecho_ini, rel if rel > fecho_ini else n) if fecho_ini >= 0 else None
+    relatorio = (rel, voto if voto > rel else n) if rel >= 0 else None
+    div = faixa_divergente(norm(bruto), 0)
+    votos, outros = [], []
+    if voto >= 0:
+        fim_v = n
+        if div:
+            d0 = _bruto(bruto, norm(bruto), div[0])
+            if d0 > voto:
+                fim_v = d0
+                outros = [(d0, n, "depois de sinal de divergência")]
+        votos = [(voto, fim_v)]
+    return _posicao_generica(bruto, meio, ementa=ementa, relatorio=relatorio, votos=votos, outros=outros, fecho=fecho)
 
 def _obiter_antes(tn: str, ini0: int, fim: int, bruto: str):
     cabeca = ini0 + int((fim - ini0) * _OBITER_CABECA)
@@ -2099,6 +2247,7 @@ async def verificar(numero_acordao: str, trecho: str, numero_processo: str | Non
         return (f"❌ NÃO CONFERE — {base}\nFragmento que não aparece literalmente: «{r.get('fragmento') or r.get('erro')}»\n"
                 "Não vai entre aspas. (Diferença de número '1.000'≠'1000' ou palavra cortada também dá ❌ — o lado seguro.)")
     return (f"✅ CONFERE LITERALMENTE — {base}\n" + "".join(f"⚠ {a}\n" for a in r["alertas"] + avisos)
+            + (f"ℹ POSIÇÃO NO JULGADO: {r['posicao']}.\n" if r.get("posicao") else "")
             + f"Contexto (normalizado): …{r['contexto']}…\nCitação: {citacao(d, orgao, rec['url'], 'inteiro teor lido')}")
 
 

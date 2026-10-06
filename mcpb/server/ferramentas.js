@@ -224,6 +224,7 @@ export async function verificar(numeroAcordao, trecho, numeroProcesso = null) {
   const base = `acórdão ${rec.acordao} (recibo ${doDisco ? "do disco" : "gravado agora"}, sha256 ${rec.sha256.slice(0, 16)}…)`;
   if (!r.ok) return `❌ NÃO CONFERE — ${base}\nFragmento que não aparece literalmente: «${r.fragmento || r.erro}»\nNão vai entre aspas. (Diferença de número '1.000'≠'1000' ou palavra cortada também dá ❌ — o lado seguro.)`;
   return `✅ CONFERE LITERALMENTE — ${base}\n` + [...r.alertas, ...avisos].map((a) => `⚠ ${a}\n`).join("") +
+    (r.posicao ? `ℹ POSIÇÃO NO JULGADO: ${r.posicao}.\n` : "") +
     `Contexto (normalizado): …${r.contexto}…\nCitação: ${citacao(d, orgao, rec.url, "inteiro teor lido")}`;
 }
 

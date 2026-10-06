@@ -1,5 +1,6 @@
 // Recibos de inteiro teor (sha256, campos de custódia) — porte de `servidor_tjse.py` (seção "Recibos e conferência").
 // O formato é o mesmo do Python (e dos MCPs do TJRO e do STJ): um lint de citações confere a peça contra o recibo.
+import { trechosObiter } from "./atribuicao13.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -32,6 +33,7 @@ export function camposDeCustodia(rec) {
     // iguais deixam passar exatamente o que o alerta existe para pegar).
     trechos_transcritos: faixasTranscritas(tn, ini).map(([a, b]) => corpo.slice(bruto(corpo, tn, a), bruto(corpo, tn, b))),
     trecho_divergente: div ? corpo.slice(bruto(corpo, tn, div[0])) : "",
+    trechos_obiter: trechosObiter(corpo),
     normalizacao: "trechos em bruto, recortados de `texto` — normalize com a sua própria função",
   };
 }
