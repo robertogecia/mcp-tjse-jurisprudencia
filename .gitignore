@@ -10,3 +10,4 @@ harness/_cand_*.txt
 harness/_resultado_bruto.json
 experimento-semantico/vetores.npy
 harness/rotulagem-*/
+*.mcpb
