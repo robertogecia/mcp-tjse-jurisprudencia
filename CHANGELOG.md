@@ -1,5 +1,14 @@
 # Histórico
 
+- **v1.2.0 (06/10/2026) — regras de atribuição do TJRO (aspas, alegação, negação) e o alerta OBITER DICTUM?.** `verificar_citacao_tjse`
+  passa a usar o mesmo bloco de regras que o TJRO (v1.13/1.15), o STJ e o TRT14 já usam: ENTRE ASPAS por pareamento das aspas no
+  documento inteiro (curvas e retas numa pilha só, reta orientada pelo vizinho, « »), ALEGAÇÃO DA PARTE por verbo de relato com a parte
+  como sujeito na FRASE do trecho (e não em qualquer ponto de 400 caracteres), NEGAÇÃO por alcance (operador sem quebra de oração até
+  o trecho, alcançando 3+ palavras dele; adjetivo solto como "improcedente" não conta; "não havendo dúvida" não nega; "sem razão"
+  conta), e o alerta novo OBITER DICTUM? (marca contrafactual ou de fundamento alternativo na mesma frase: "ainda que assim não
+  fosse", "a título de argumentação"). Medição CEGA e DUPLA sobre 45 inteiros teores (40 baixados em 06/10/2026), dois rotuladores Sonnet independentes, kappa 0,75-0,97, ponderada por estrato: ENTRE ASPAS precisão 96% / cobertura 61% / falso alarme 2%; ALEGAÇÃO DA PARTE 97% / 69% / 1%; OBITER DICTUM? 100% / 25% / 0% (só 7 disparos na amostra: pouca marca contrafactual no TJSE); NEGAÇÃO 40% / 100% / 12% — o aviso fraco em todo tribunal (TJRO 68%, STJ ~26%, TRT14 ~28%): dispara em narração do que a origem rejeitou; vale como "leia a frase inteira", não como diagnóstico. Python
+  (v0.9.0) e Node em paridade (8.712 conferências idênticas). O módulo `server/atribuicao13.js` é cópia byte a byte do do TRT14.
+
 - **v1.1.0 (23/09/2026) — `triagem=true` na busca: o Claude reordena, sem download novo.** Testamos se busca semântica (vetores de
   ementa, modelo multilingual-e5-small) e um reranker (bge-reranker-v2-m3) melhorariam a busca: 20 perguntas em linguagem natural,
   julgadas às cegas por um agente que não sabia qual método trouxe cada acórdão. Precisão nos 10 primeiros: busca por palavras

@@ -75,7 +75,7 @@ def main(online: bool = False) -> int:
     assert sint != bruto03, "o fixture mudou: a substituição sintética não pegou"
     d3 = s.parse_teor(sint); t("RT2 órgão = o PRIMEIRO no texto do fecho, não o primeiro da lista", d3["orgao_fecho"] == "2ª Câmara Cível")
     t("RT2 '1ª Turma Recursal' não vira 'Turma Recursal'", s.parse_teor(bruto03.replace("nesta 1&ordf; C&acirc;mara C&iacute;vel", "nesta 1&ordf; Turma Recursal"))["orgao_fecho"] == "1ª Turma Recursal")
-    for neg in ("o pedido é improcedente quanto", "nega-se", "rejeita-se a tese de que", "sem razão o apelante ao dizer que"):
+    for neg in ("não se pode afirmar que", "nega-se", "rejeita-se a tese de que", "sem razão o apelante ao dizer que"):
         r = s.conferir("Relatório. " + neg + " o banco deve restituir em dobro os valores descontados. Fim.", "o banco deve restituir em dobro os valores descontados")
         t(f"RT6 negação detectada: {neg!r}", r["ok"] and any("NEGA" in a for a in r["alertas"]))
     r = s.conferir("Não obstante o banco deve restituir em dobro os valores descontados. Fim.", "o banco deve restituir em dobro os valores descontados")

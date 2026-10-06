@@ -277,7 +277,7 @@ describe("conferência literal e alertas de atribuição", () => {
     assert.ok(soma > 0.5 && soma < 0.9, `faixas cobrem ${soma}`);
   });
   it("negação antes do trecho; 'não obstante' não é negação", () => {
-    for (const neg of ["o pedido é improcedente quanto", "nega-se", "rejeita-se a tese de que", "sem razão o apelante ao dizer que"])
+    for (const neg of ["não se pode afirmar que", "nega-se", "rejeita-se a tese de que", "sem razão o apelante ao dizer que"])
       assert.ok(tem(C.conferir(`Relatório. ${neg} o banco deve restituir em dobro os valores descontados. Fim.`, "o banco deve restituir em dobro os valores descontados"), "NEGA"), neg);
     const r = C.conferir("Não obstante o banco deve restituir em dobro os valores descontados. Fim.", "o banco deve restituir em dobro os valores descontados");
     assert.ok(r.ok && !r.alertas.some((a) => a.includes("NEGA")));

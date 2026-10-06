@@ -3,6 +3,32 @@
 // vencido, produz peça errada. Funções puras; testadas contra o Python em test/paridade.
 import { pyre, escapaRe } from "./pyre.js";
 import { norm, palavras } from "./texto.js";
+// v1.2.0 (06/10/2026): regras de atribuição do TJRO v1.13/1.15, pelo bloco já portado ao TRT14 (atribuicao13.js, paridade provada)
+import { norm1, alegacaoDaParte, negacaoEscopo, entreAspas, obiterAntes } from "./atribuicao13.js";
+
+const normalizarCasamento = (t) => (norm(t).match(/[a-z0-9]+/g) || []).join(" ");
+/** _faixa_norm: posição do trecho em norm1(bruto) (mesmo comprimento do bruto), ocorrência mais próxima do casamento oficial. */
+export function faixaNorm(nt, fragmentos, pertoDe = 0.0) {
+  const lista = fragmentos.map((f) => normalizarCasamento(f).split(" ").filter(Boolean)).filter((ps) => ps.length);
+  if (!lista.length) return null;
+  const pad = (ps) => new RegExp("(?<![a-z0-9])" + ps.map(escapaRe).join("[^a-z0-9]+") + "(?![a-z0-9])", "g");
+  const inicios = [...nt.matchAll(pad(lista[0]))].map((m) => m.index);
+  if (!inicios.length) return null;
+  const alvo = pertoDe * nt.length;
+  let pos = inicios[0];
+  for (const i of inicios) if (Math.abs(i - alvo) < Math.abs(pos - alvo)) pos = i;
+  let ini = null, fim = null;
+  for (const ps of lista) {
+    const re = pad(ps);
+    re.lastIndex = pos;
+    const m = re.exec(nt);
+    if (!m) return null;
+    ini = ini === null ? m.index : ini;
+    pos = fim = m.index + m[0].length;
+  }
+  return [ini, fim];
+}
+
 
 const TRIB = String.raw`(?:tj-?[a-z]{2}|stj|stf|trf-?\d|tst|trt-?\d+|tnu)`;
 const RE_ATRIB = pyre(
@@ -121,21 +147,21 @@ export function conferir(texto, trecho, inicioVoto = 0) {
   const div = faixaDivergente(tn, inicioVoto);
   if (div && spans.some(([, b]) => b > div[0]))
     alertas.push("VOTO DIVERGENTE: o trecho vem depois de um sinal de divergência no acórdão (pedido de vênia, voto vencido ou voto-vista). Pode ser o voto VENCIDO — leia quem venceu antes de citar como entendimento do órgão.");
-  if (!emTranscricao) {
-    // aspas: norm() leva todas a ' — ímpar antes + uma depois, perto, = o tribunal está citando alguém
-    const antesQ = tn.slice(Math.max(0, ini0 - 1200), ini0), depoisQ = tn.slice(pos, pos + 1200);
-    const nQ = (antesQ.match(/(?<![a-z])'|'(?![a-z])/g) || []).length;
-    if (nQ % 2 === 1 && /'(?![a-z])/.test(depoisQ))
+  // v1.2.0: regras do TJRO v1.13/1.15 sobre norm1(bruto) (1:1), localizando o trecho perto do casamento oficial
+  const bruto = String(texto || "");
+  const nt = norm1(bruto);
+  const fx = faixaNorm(nt, frags, ini0 / Math.max(1, tn.length));
+  if (!emTranscricao && fx) {
+    if (entreAspas(bruto, nt, fx[0], fx[1]))
       alertas.push("ENTRE ASPAS: o trecho parece estar dentro de aspas no acórdão — é o tribunal citando alguém (doutrina, lei, decisão recorrida, outro julgado). Confira de quem é a frase antes de atribuí-la ao TJSE.");
-    const jan = tn.slice(Math.max(0, ini0 - 400), ini0);
-    let ult = -1;
-    for (const x of matches(RE_ALEGACAO, jan)) ult = Math.max(ult, x.index + x[0].length);
-    if (ult >= 0 && RE_QUEM_ALEGA.test(jan.slice(Math.max(0, ult - 160), ult + 160)) && !RE_VOZ_PROPRIA.test(jan.slice(ult)))
-      alertas.push("ALEGAÇÃO DA PARTE: pouco antes do trecho o texto relata o que uma parte (ou o MP) sustenta/alega — o trecho pode ser tese da parte, não decisão do tribunal. Confira no relatório/voto quem fala.");
+    if (alegacaoDaParte(nt, fx[0], fx[1], bruto))
+      alertas.push("ALEGAÇÃO DA PARTE: o texto relata o que uma parte (ou o MP) sustenta, alega ou requer logo antes do trecho — o trecho pode ser tese da parte, não decisão do tribunal. Confira no relatório/voto quem fala.");
   }
-  const antes = tn.slice(Math.max(0, ini0 - 90), ini0);
-  if (RE_NEGACAO.test(antes) && !RE_NEGACAO_FALSA.test(antes.slice(-40)))
-    alertas.push("NEGAÇÃO: há negativa logo antes do trecho — o recorte pode inverter o julgado. Não citar sem ler.");
+  if (fx && negacaoEscopo(nt, fx[0], fx[1], bruto))
+    alertas.push("NEGAÇÃO: há negativa logo antes do trecho — o recorte pode inverter o julgado. Não citar sem ler a frase inteira.");
+  const ob = !emTranscricao && fx && !alertas.some((a) => a.startsWith("ENTRE ASPAS")) ? obiterAntes(nt, fx[0], fx[1], bruto) : null;
+  if (ob)
+    alertas.push(`OBITER DICTUM?: o trecho vem sob «${ob}» — raciocínio hipotético ou fundamento alternativo; o resultado do julgado não dependeu dele. Vale como reforço, não como ratio decidendi; cite dizendo que é obiter.`);
   return { ok: true, alertas, contexto: tn.slice(Math.max(0, ini0 - 120), pos + 120).replace(/\s+/g, " ") };
 }
 
