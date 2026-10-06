@@ -86,7 +86,7 @@ try:
 except Exception:
     httpx = None  # type: ignore
 
-VERSAO = "0.9.1"
+VERSAO = "0.10.0"
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_DADOS = os.environ.get("TJSE_DIR_DADOS", RAIZ)
 ARQ_ESTADO = os.path.join(DIR_DADOS, ".disjuntor_estado_tjse.json")
@@ -1487,7 +1487,17 @@ def _alegacao_da_parte(tn: str, ini0: int, fim: int | None = None, bruto: str | 
 # dele. Adjetivo solto ("inexistente", "indevido") e "NÃO CONHECIDO." de ementa não contam.
 _RE_NEG_OPERADOR = re.compile(r"(?<![a-z0-9])(?:nao|jamais|nunca|nem|descabe|descabid[oa]s?|incabive(?:l|is)|afasta-se|afasto|afastad[oa]s?|rejeita-se|rejeito|rejeitad[oa]s?|nego|negou|negar|nega-se|negam|improcede|julg(?:ou|o|ar|aram|ada|ado|ados|adas)\s+improcedentes?|inexist(?:e|em|ir|iu|indo)|carece|carecem|impossibilidade de|sem razao|sem razoes)(?![a-z0-9])", _A)
 # "não havendo dúvida de que X" / "não há dúvida de que X" afirmam X (achado no STJ, 05/10/2026)
-_RE_NEG_FALSA = re.compile(r"\s*(?:obstante|so\b|apenas|somente|se\s+confunde|fosse\b|(?:havendo|ha|houve|resta|restam|restando|pairam?)\s+(?:qualquer\s+|mais\s+)?duvidas?)", _A)
+_RE_NEG_FALSA = re.compile(r"\s*(?:obstante|so\b|apenas|somente|se\s+confunde|fosse\b|(?:havendo|ha|houve|resta|restam|restando|pairam?)\s+(?:qualquer\s+|mais\s+)?duvidas?"
+                           # "não é outro o entendimento", "não se desconhece que", "não se pode deixar de" afirmam (06/10/2026)
+                           r"|(?:e|era|foi|sao|seria)\s+(?:outr[oa]s?|diferente|divers[oa]s?)\b|se\s+(?:desconhece|ignora|olvida|nega|discute|questiona)\b"
+                           r"|(?:se\s+)?pode\s+(?:deixar|olvidar|ignorar|negar)\b|deixa\s+de\b|ha\s+como\s+negar|ha\s+negar)", _A)
+# gabarito cego de 06/10/2026 (622 trechos de ajuste; 120 novos de validação: falso alarme 42% → 31%, cobertura 100% → 98%):
+# negação a mais de 6 palavras já fechou a própria oração; "não utilizado pelo…" nega o particípio, não o trecho que vem depois;
+# "…, e não sobre…" recusa uma alternativa, não nega proposição
+_NEGACAO_DIST_MAX = 6
+_RE_NEG_PARTICIPIO = re.compile(r"\s*(?:\w+mente\s+)?[a-z]+(?:ad|id)[oa]s?\b", _A)
+_RE_NEG_AUX = re.compile(r"\s*(?:tenha|tem|ha|havia|foi|for|seja|sido|esta|estava)\b", _A)
+_RE_NEG_PREP = re.compile(r"\s*(?:sobre|pel[oa]s?|para|por|com|contra|ante|perante|apenas|so|somente|mais|menos)\b", _A)
 _RE_QUEBRA_ORACAO = re.compile(r"[.;:]|,\s*(?:mas|e|ou|que|o que|de forma|de modo|sendo|alem|conforme|porque|pois|porquanto|embora|ainda|razao pela|motivo pelo|[a-z]+ndo)(?![a-z0-9])|\smas\s", _A)
 _NEGACAO_JANELA, _NEGACAO_ALCANCE_MIN = 80, 3
 
@@ -1505,6 +1515,10 @@ def _negacao_escopo(tn: str, ini0: int, fim: int, bruto: str | None = None) -> b
     if re.search(r"[.;:]", ponte):
         return False
     if "," in ponte and len(ponte.strip(" ")) > 15:
+        return False
+    if len(re.findall(r"[^ \t\n\r\f\v]+", ponte)) > _NEGACAO_DIST_MAX:
+        return False
+    if op.group(0) == "nao" and (_RE_NEG_PREP.match(ponte) or (_RE_NEG_PARTICIPIO.match(ponte) and not _RE_NEG_AUX.match(ponte))):
         return False
     tr = tn[ini0:fim]
     # trecho que começa pela conjunção "e" não está no alcance; "é" (verbo) está — olha o caractere ORIGINAL, porque o normalizado
@@ -1617,7 +1631,7 @@ def _faixa_norm(nt: str, fragmentos: list[str], perto_de: float = 0.0) -> tuple[
 
 
 # OBITER DICTUM? (espelho de verificar.js/posicao.js do TJRO 1.15.0): marca contrafactual/alternativa na MESMA frase.
-_RE_OBITER = re.compile(r"(?<![a-z0-9])(?:ainda que assim nao fosse|se assim nao fosse|(?:ainda|mesmo) que (?:se )?(?:admitisse(?:mos)?|superad[ao]s?|ultrapassad[ao]s?|afastad[ao]s?|entendesse(?:mos)?|considerasse(?:mos)?|fosse|houvesse|pudesse)|a titulo de (?:argumentacao|reforco|ilustracao|obiter dictum)|(?:apenas|somente|so) para argumentar|ad argumentandum(?: tantum)?|por amor ao debate|obiter dictum|caso se entendesse)(?![a-z0-9])", _A)
+_RE_OBITER = re.compile(r"(?<![a-z0-9])(?:ainda que assim nao fosse|se assim nao fosse|(?:ainda|mesmo) que (?:se )?(?:admitisse(?:mos)?|superad[ao]s?|ultrapassad[ao]s?|afastad[ao]s?|entendesse(?:mos)?|considerasse(?:mos)?|fosse|houvesse|pudesse)|a titulo de (?:argumentacao|reforco|ilustracao|obiter dictum)|(?:apenas|somente|so) para argumentar|ad argumentandum(?: tantum)?|por amor ao debate|obiter dictum|caso se entendesse|registre-se,? (?:por oportuno|de passagem)|a titulo de registro|apenas (?:para|a titulo de) registro)(?![a-z0-9])", _A)
 _OBITER_JANELA, _OBITER_CABECA = 400, 0.4
 
 

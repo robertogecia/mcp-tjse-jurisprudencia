@@ -1,3 +1,4 @@
 test/
 *.mcpb
 .DS_Store
+*.bak*
