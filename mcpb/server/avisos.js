@@ -41,7 +41,9 @@ export function iniciarChecagemVersao(opcoes) {
   checarVersao(opcoes).then((v) => { if (v) versaoNova = v; }, () => {});
 }
 
-export const avisoAtualizacao = (nova) => `_Há uma versão mais nova desta extensão (v${nova}; a instalada é a v${VERSAO}): ${RELEASES_PAGINA}_`;
+// (07/10/2026) link DIRETO do pacote e instrução de instalação; o endereço continua fixo, nunca vindo da API
+export const PACOTE_MCPB_URL = `https://github.com/${REPO_GITHUB}/releases/latest/download/Jurisprudencia-TJSE.mcpb`;
+export const avisoAtualizacao = (nova) => `⬆️ Há versão nova desta extensão (v${nova}; a instalada é a v${VERSAO}).\nBaixar: ${PACOTE_MCPB_URL}\nDepois dê dois cliques no arquivo baixado e reinicie o Claude Desktop. O que mudou: ${RELEASES_PAGINA}`;
 
 /** Crédito (uma vez por processo) e, se houver, aviso de versão (uma vez). Nunca espera rede. */
 export function comAvisos(texto) {
