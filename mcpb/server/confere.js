@@ -4,7 +4,7 @@
 import { pyre, escapaRe } from "./pyre.js";
 import { norm, palavras } from "./texto.js";
 // v1.2.0 (06/10/2026): regras de atribuição do TJRO v1.13/1.15, pelo bloco já portado ao TRT14 (atribuicao13.js, paridade provada)
-import { norm1, alegacaoDaParte, negacaoEscopo, entreAspas, obiterAntes } from "./atribuicao13.js";
+import { norm1, alegacaoDaParte, negacaoEscopo, negacaoProxima, entreAspas, obiterAntes } from "./atribuicao13.js";
 import { posicaoTjse } from "./posicao.js";
 
 // a MESMA dobra do texto (norm1): com norm() o "º" de "nº" não casava (06/10/2026)
@@ -160,7 +160,8 @@ export function conferir(texto, trecho, inicioVoto = 0) {
       alertas.push("ALEGAÇÃO DA PARTE: o texto relata o que uma parte (ou o MP) sustenta, alega ou requer logo antes do trecho — o trecho pode ser tese da parte, não decisão do tribunal. Confira no relatório/voto quem fala.");
   }
   if (fx && negacaoEscopo(nt, fx[0], fx[1], bruto))
-    alertas.push("NEGAÇÃO: há negativa logo antes do trecho — o recorte pode inverter o julgado. Não citar sem ler a frase inteira.");
+    alertas.push(negacaoProxima(nt, fx[0]) ? "NEGAÇÃO: há negativa logo antes do trecho — o recorte pode inverter o julgado. Não citar sem ler a frase inteira."
+      : "NEGAÇÃO (distante)?: há uma negativa algumas palavras antes do trecho, fora dele. Na maioria das vezes ela fecha a própria oração e não inverte o recorte (medido às cegas), mas leia a frase inteira antes de citar.");
   const ob = !emTranscricao && fx && !alertas.some((a) => a.startsWith("ENTRE ASPAS")) ? obiterAntes(nt, fx[0], fx[1], bruto) : null;
   if (ob)
     alertas.push(`OBITER DICTUM?: o trecho vem sob «${ob}» — raciocínio hipotético ou fundamento alternativo; o resultado do julgado não dependeu dele. Vale como reforço, não como ratio decidendi; cite dizendo que é obiter.`);
